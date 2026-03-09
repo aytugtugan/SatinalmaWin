@@ -85,6 +85,12 @@ function normalizeAmbarName(ambar) {
   return ambar.toLocaleUpperCase('tr-TR');
 }
 
+function normalizeTedarikciName(tedarikci) {
+  if (!tedarikci) return '';
+  if (tedarikci === 'MUHTELİF SATICILAR') return 'MUHTELİF SATICILAR (E-TİCARET)';
+  return tedarikci;
+}
+
 function toTitleCase(str) {
   if (!str) return '';
   return str.split(' ').map(function(w) {
@@ -216,7 +222,11 @@ async function getMergedRecords() {
 function groupBy(data, field) {
   const groups = new Map();
   for (const r of data) {
-    const key = r[field] || 'Belirsiz';
+    let key = r[field] || 'Belirsiz';
+    // Tedarikçi adlarını normalize et
+    if (field === 'CARI_UNVANI') {
+      key = normalizeTedarikciName(key);
+    }
     if (!groups.has(key)) {
       groups.set(key, { count: 0, siparisSet: new Set(), talepSet: new Set(), toplam: 0 });
     }
@@ -232,7 +242,13 @@ function groupBy(data, field) {
 // getAllData - DetayliRapor sayfasi icin tum kayitlari dondur
 async function getAllData() {
   const records = await getMergedRecords();
-  const filteredData = records.filter(function(r) { return r.TUR && r.TUR !== ''; });
+  let filteredData = records.filter(function(r) { return r.TUR && r.TUR !== ''; });
+  // Tedarikçi adlarını normalize et
+  filteredData = filteredData.map(function(r) {
+    return Object.assign({}, r, {
+      CARI_UNVANI: normalizeTedarikciName(r.CARI_UNVANI)
+    });
+  });
   var columns = [
     'TALEP_NO','SIPARIS_NO','TESLIM_TARIHI','TESLIM_EVRAK_NO','CARI_UNVANI',
     'TOPLAM','SIPARIS_TARIHI','TALEP_EDEN','MASRAF_MERKEZI','PARA_BIRIMI',

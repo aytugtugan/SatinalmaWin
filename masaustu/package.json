@@ -1,6 +1,6 @@
 {
   "name": "satinalma-rapor",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Satın Alma Rapor Uygulaması",
   "main": "main.js",
   "scripts": {
