@@ -22,17 +22,36 @@ const App = () => {
   const [selectedAmbar, setSelectedAmbar] = useState('all');
   const [comparisonData, setComparisonData] = useState({});
   const [isFullscreen, setIsFullscreen] = useState(true);
-  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState(null); // null | 'downloading' | 'ready'
+  const [updateVersion, setUpdateVersion] = useState('');
+  const [downloadPercent, setDownloadPercent] = useState(0);
 
   // Güncelleme event listener
   useEffect(() => {
     if (window.api?.onUpdateAvailable) {
-      window.api.onUpdateAvailable(() => setUpdateAvailable(true));
+      window.api.onUpdateAvailable((info) => {
+        setUpdateStatus('downloading');
+        setUpdateVersion(info?.version || '');
+      });
+    }
+    if (window.api?.onDownloadProgress) {
+      window.api.onDownloadProgress((progress) => {
+        setDownloadPercent(Math.round(progress?.percent || 0));
+      });
     }
     if (window.api?.onUpdateDownloaded) {
-      window.api.onUpdateDownloaded(() => setUpdateAvailable(false));
+      window.api.onUpdateDownloaded((info) => {
+        setUpdateStatus('ready');
+        setUpdateVersion(info?.version || '');
+      });
     }
   }, []);
+
+  const handleRestartForUpdate = () => {
+    if (window.api?.restartForUpdate) {
+      window.api.restartForUpdate();
+    }
+  };
 
   // Ambar listesini yukle
   const loadAmbarList = async () => {
@@ -220,7 +239,7 @@ const App = () => {
                   <ReloadOutlined spin={loading} />
                   <span>Yenile</span>
                 </button>
-{updateAvailable && <div className="notification-badge" title="Yeni güncelleme mevcut"></div>}
+
                 <div className="win-controls">
                   <button className="win-btn win-minimize" onClick={handleMinimize} title="Küçült">
                     <MinusOutlined />
@@ -234,6 +253,23 @@ const App = () => {
                 </div>
               </div>
             </div>
+            {/* Güncelleme bildirimi */}
+            {updateStatus === 'downloading' && (
+              <div className="update-banner downloading">
+                <span>Güncelleme indiriliyor... %{downloadPercent}</span>
+                <div className="update-progress-bar">
+                  <div className="update-progress-fill" style={{ width: `${downloadPercent}%` }}></div>
+                </div>
+              </div>
+            )}
+            {updateStatus === 'ready' && (
+              <div className="update-banner ready">
+                <span>Yeni sürüm (v{updateVersion}) hazır!</span>
+                <button className="update-restart-btn" onClick={handleRestartForUpdate}>
+                  Şimdi Güncelle
+                </button>
+              </div>
+            )}
             {renderPage()}
           </main>
         </div>

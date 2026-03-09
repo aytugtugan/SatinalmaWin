@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
 const path = require('path');
 const fs = require('fs');
 const database = require('./database');
@@ -115,20 +117,11 @@ autoUpdater.on('download-progress', (progressObj) => {
 });
 
 autoUpdater.on('update-downloaded', (info) => {
-  console.log('Güncelleme indirildi, yeniden başlatılacak...');
+  console.log('Güncelleme indirildi:', info.version);
   if (mainWindow) {
     mainWindow.webContents.send('update-downloaded', info);
-    dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Güncelleme Hazır',
-      message: `Yeni sürüm (v${info.version}) indirildi. Uygulama şimdi yeniden başlatılacak.`,
-      buttons: ['Tamam']
-    }).then(() => {
-      autoUpdater.quitAndInstall(true, true);
-    });
-  } else {
-    autoUpdater.quitAndInstall(true, true);
   }
+  // Uygulama kapanınca otomatik kurulacak (autoInstallOnAppQuit = true)
 });
 
 app.on('window-all-closed', () => {
@@ -173,6 +166,10 @@ ipcMain.handle('check-for-updates', async () => {
     console.error('Güncelleme kontrol hatası:', error);
     return { success: false, error: error.message };
   }
+});
+
+ipcMain.handle('restart-for-update', () => {
+  autoUpdater.quitAndInstall(true, true);
 });
 
 // IPC Handlers
