@@ -17,7 +17,9 @@ const SATINALMA_API_URL = 'http://10.35.20.17:5055';
 // Statik Ocak 2026 verileri
 let staticRecords = [];
 try {
-  let staticDataPath = path.join(__dirname, 'ocak_2026_data.json');
+  // extraResources yolu (kurulu uygulama): resources/ocak_2026_data.json
+  let staticDataPath = path.join(process.resourcesPath || '', 'ocak_2026_data.json');
+  if (!fs.existsSync(staticDataPath)) staticDataPath = path.join(__dirname, 'ocak_2026_data.json');
   if (!fs.existsSync(staticDataPath)) staticDataPath = path.join(process.cwd(), 'ocak_2026_data.json');
   if (fs.existsSync(staticDataPath)) {
     const raw = JSON.parse(fs.readFileSync(staticDataPath, 'utf8'));

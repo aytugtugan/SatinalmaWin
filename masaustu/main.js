@@ -2,6 +2,12 @@ const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron')
 const { autoUpdater } = require('electron-updater');
 autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
+// Ozel GitHub reposu icin token - tum makinelerde guncelleme calissin
+autoUpdater.requestHeaders = { 'Authorization': 'token TOKEN_REMOVED' };
+// Guncelleme logunu dosyaya yaz
+const log = require('electron-log');
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'info';
 const path = require('path');
 const fs = require('fs');
 const database = require('./database');

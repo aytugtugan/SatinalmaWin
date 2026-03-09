@@ -1,6 +1,6 @@
 {
   "name": "satinalma-rapor",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Satın Alma Rapor Uygulaması",
   "main": "main.js",
   "scripts": {
@@ -40,13 +40,18 @@
         "releaseType": "release"
       }
     ],
+    "extraResources": [
+      {
+        "from": "ocak_2026_data.json",
+        "to": "ocak_2026_data.json"
+      }
+    ],
     "files": [
       "dist/**/*",
       "main.js",
       "preload.js",
       "database.js",
       "assets/**/*",
-      "ocak_2026_data.json",
       "ocak_verileri_fixed.json",
       "export_toplam_try.csv"
     ]
@@ -59,6 +64,7 @@
     "antd": "^5.24.8",
     "cors": "^2.8.6",
     "dayjs": "^1.11.13",
+    "electron-log": "^5.4.3",
     "electron-updater": "^6.8.3",
     "express": "^4.22.1",
     "mssql": "^11.0.1",
