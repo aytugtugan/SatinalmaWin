@@ -1,6 +1,6 @@
 {
   "name": "satinalma-rapor",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Satın Alma Rapor Uygulaması",
   "main": "main.js",
   "scripts": {
@@ -30,6 +30,20 @@
       "uninstallerIcon": "assets/icon.ico",
       "shortcutName": "Satin Alma Rapor"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "mustafabakoglu",
+        "repo": "Satin-alma",
+        "releaseType": "release"
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "ocak_2026_data.json",
+        "to": "ocak_2026_data.json"
+      }
+    ],
     "files": [
       "dist/**/*",
       "main.js",
@@ -48,6 +62,8 @@
     "@ant-design/icons": "^5.6.1",
     "antd": "^5.24.8",
     "dayjs": "^1.11.13",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.8.3",
     "mssql": "^11.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

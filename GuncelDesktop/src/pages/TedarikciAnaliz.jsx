@@ -1,62 +1,51 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { SwitchableChart, formatNumber, formatCurrency } from '../components/SwitchableChart';
-import {
-  TeamOutlined,
-  DollarOutlined,
-  ShoppingOutlined,
-  TrophyOutlined,
-} from '@ant-design/icons';
+import CompareSwitch from '../components/CompareSwitch';
+import ComparisonChart from '../components/ComparisonChart';
+import { TeamOutlined, WalletOutlined, ShoppingCartOutlined, CrownOutlined } from '@ant-design/icons';
 
-const TedarikciAnaliz = ({ data, fabrikaKarsilastirma = false, onChartClick }) => {
+const TOP_N = 10;
+
+const ShowAllBtn = ({ show, onToggle, total }) => (
+  <div style={{ textAlign: 'center', marginTop: -4, marginBottom: 16 }}>
+    <button
+      onClick={onToggle}
+      style={{
+        background: 'none', border: '1px solid #e2e8f0', borderRadius: 8,
+        padding: '6px 18px', cursor: 'pointer', fontSize: 12,
+        color: '#3b82f6', fontWeight: 600, transition: 'all 0.15s ease',
+      }}
+    >
+      {show ? `İlk ${TOP_N}'u Göster` : `Tümünü Gör (${total})`}
+    </button>
+  </div>
+);
+
+const TedarikciAnaliz = ({ data, comparisonData = {}, selectedAmbar = 'all' }) => {
+  const [isCompareMode, setIsCompareMode] = useState(false);
   const [showAllTutar, setShowAllTutar] = useState(false);
   const [showAllAdet, setShowAllAdet] = useState(false);
 
   if (!data) return null;
+  const { tedarikci, summary } = data;
 
-  const { tedarikci, summary, ambar } = data;
-
-  // Ensure copies and sort descending by relevant metrics
   const byTutarDesc = (tedarikci || []).slice().sort((a, b) => (b.toplamTutar || 0) - (a.toplamTutar || 0));
   const byAdetDesc = (tedarikci || []).slice().sort((a, b) => (b.siparisAdedi || 0) - (a.siparisAdedi || 0));
 
-  // Tedarikcilere gore tutar (en coktan aza) - TÜM tedarikçiler
-  const tedarikciTutarData = byTutarDesc.map(item => ({
+  const tedarikciTutarFull = byTutarDesc.map(item => ({
     name: item.tedarikci?.substring(0, 25) || 'Belirsiz',
     value: item.toplamTutar,
   }));
-
-  // Tedarikcilere gore siparis adedi (en coktan aza) - TÜM tedarikçiler
-  const tedarikciAdetData = byAdetDesc.map(item => ({
+  const tedarikciAdetFull = byAdetDesc.map(item => ({
     name: item.tedarikci?.substring(0, 25) || 'Belirsiz',
     value: item.siparisAdedi,
   }));
 
-  // En buyuk tedarikci by toplam tutar
+  const tedarikciTutarData = showAllTutar ? tedarikciTutarFull : tedarikciTutarFull.slice(0, TOP_N);
+  const tedarikciAdetData = showAllAdet ? tedarikciAdetFull : tedarikciAdetFull.slice(0, TOP_N);
+
   const topTedarikci = byTutarDesc.length > 0 ? byTutarDesc[0] : null;
-
-  // Toplam tedarikci tutari
   const toplamTedarikciTutar = (tedarikci || []).reduce((sum, item) => sum + (item.toplamTutar || 0), 0);
-
-  // Fabrikaya gore tutar
-  const fabrikaTutarData = (ambar || [])
-    .slice()
-    .sort((a, b) => (b.toplamTutar || 0) - (a.toplamTutar || 0))
-    .map(item => ({
-      name: item.ambar || 'Belirsiz',
-      value: item.toplamTutar || 0,
-    }));
-
-  // Fabrikaya gore siparis adedi
-  const fabrikaAdetData = (ambar || [])
-    .slice()
-    .sort((a, b) => (b.siparisAdedi || 0) - (a.siparisAdedi || 0))
-    .map(item => ({
-      name: item.ambar || 'Belirsiz',
-      value: item.siparisAdedi || 0,
-    }));
-
-  // En buyuk fabrika by tutar
-  const topFabrika = fabrikaTutarData.length > 0 ? fabrikaTutarData[0] : null;
 
   return (
     <div>
@@ -65,177 +54,84 @@ const TedarikciAnaliz = ({ data, fabrikaKarsilastirma = false, onChartClick }) =
         <p>Tedarikçi performanslarının detaylı analizi ve karşılaştırması</p>
       </div>
 
-      {/* KPI Cards */}
       <div className="kpi-grid">
-        {fabrikaKarsilastirma ? (
-          <>
-            <div className="kpi-card">
-              <div className="kpi-icon blue">
-                <TeamOutlined />
-              </div>
-              <div className="kpi-value">{formatNumber(ambar?.length || 0)}</div>
-              <div className="kpi-label">Toplam Fabrika</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-icon green">
-                <DollarOutlined />
-              </div>
-              <div className="kpi-value">{formatCurrency(toplamTedarikciTutar)}</div>
-              <div className="kpi-label">Toplam Harcama</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-icon orange">
-                <TrophyOutlined />
-              </div>
-              <div className="kpi-value" style={{ fontSize: '16px' }}>
-                {topFabrika?.name?.substring(0, 18) || '-'}
-              </div>
-              <div className="kpi-label">En Büyük Fabrika</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-icon purple">
-                <ShoppingOutlined />
-              </div>
-              <div className="kpi-value">{formatCurrency(topFabrika?.value || 0)}</div>
-              <div className="kpi-label">En Yüksek Harcama</div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="kpi-card">
-              <div className="kpi-icon blue">
-                <TeamOutlined />
-              </div>
-              <div className="kpi-value">{formatNumber(summary?.totalTedarikci || 0)}</div>
-              <div className="kpi-label">Toplam Tedarikçi</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-icon green">
-                <DollarOutlined />
-              </div>
-              <div className="kpi-value">{formatCurrency(toplamTedarikciTutar)}</div>
-              <div className="kpi-label">Toplam Harcama</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-icon orange">
-                <TrophyOutlined />
-              </div>
-              <div className="kpi-value" style={{ fontSize: '16px' }}>
-                {topTedarikci?.tedarikci?.substring(0, 18) || '-'}
-              </div>
-              <div className="kpi-label">En Büyük Tedarikçi</div>
-            </div>
-
-            <div className="kpi-card">
-              <div className="kpi-icon purple">
-                <ShoppingOutlined />
-              </div>
-              <div className="kpi-value">{formatCurrency(topTedarikci?.toplamTutar || 0)}</div>
-              <div className="kpi-label">En Yüksek Harcama</div>
-            </div>
-          </>
-        )}
+        <div className="kpi-card">
+          <div className="kpi-icon blue"><TeamOutlined /></div>
+          <div className="kpi-value">{formatNumber(summary?.totalTedarikci || 0)}</div>
+          <div className="kpi-label">Toplam Tedarikçi</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-icon green"><WalletOutlined /></div>
+          <div className="kpi-value">{formatCurrency(toplamTedarikciTutar)}</div>
+          <div className="kpi-label">Toplam Harcama</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-icon orange"><CrownOutlined /></div>
+          <div className="kpi-value" style={{ fontSize: '16px' }}>
+            {topTedarikci?.tedarikci?.substring(0, 18) || '-'}
+          </div>
+          <div className="kpi-label">En Büyük Tedarikçi</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-icon purple"><ShoppingCartOutlined /></div>
+          <div className="kpi-value">{formatCurrency(topTedarikci?.toplamTutar || 0)}</div>
+          <div className="kpi-label">En Yüksek Harcama</div>
+        </div>
       </div>
 
-      {/* Charts */}
+      <CompareSwitch
+        isVisible={selectedAmbar === 'all'}
+        isCompareMode={isCompareMode}
+        onToggle={() => setIsCompareMode(!isCompareMode)}
+      />
+
       <div className="charts-grid">
-        {fabrikaKarsilastirma ? (
+        {isCompareMode && selectedAmbar === 'all' ? (
           <>
-            <SwitchableChart
-              title="Fabrikalara Göre Toplam Tutar"
-              data={fabrikaTutarData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              valueFormatter={formatCurrency}
-              height={400}
-              scrollable={true}
-              itemHeight={35}
-              allowedChartTypes={['bar']}
-              onClick={onChartClick}
-              filterField="AMBAR"
-            />
-
-            <SwitchableChart
-              title="Fabrikalara Göre Sipariş Adedi"
-              data={fabrikaAdetData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              height={400}
-              scrollable={true}
-              itemHeight={35}
-              allowedChartTypes={['bar']}
-              onClick={onChartClick}
-              filterField="AMBAR"
-            />
-
-            <SwitchableChart
-              title="Fabrika Tutar Dağılımı"
-              data={fabrikaTutarData.slice(0, 10)}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              valueFormatter={formatCurrency}
-              height={360}
-              onClick={onChartClick}
-              filterField="AMBAR"
-            />
+            <ComparisonChart title="Fabrikalara Göre Toplam Tutar" comparisonData={comparisonData} metric="toplamTutar" valueFormatter={formatCurrency} height={360} />
+            <ComparisonChart title="Fabrikalara Göre Sipariş Adedi" comparisonData={comparisonData} metric="siparisAdedi" valueFormatter={formatNumber} height={360} />
           </>
         ) : (
           <>
-            <div className={`chart-container ${showAllTutar ? 'scrollable-x' : ''}`}>
-              <div style={{ minWidth: showAllTutar ? `${Math.max(tedarikciTutarData.length * 60, 1200)}px` : 'auto' }}>
-                <SwitchableChart
-                  title="Tedarikçilere Göre Toplam Tutar"
-                  data={showAllTutar ? tedarikciTutarData : tedarikciTutarData.slice(0, 10)}
-                  dataKey="value"
-                  nameKey="name"
-                  defaultType="bar"
-                  valueFormatter={formatCurrency}
-                  height={400}
-                  scrollable={false}
-                  itemHeight={35}
-                  allowedChartTypes={['bar', 'horizontal']}
-                  onClick={onChartClick}
-                  filterField="CARI_UNVANI"
+            <div style={showAllTutar ? { gridColumn: 'span 2' } : {}}>
+              <SwitchableChart
+                title="Tedarikçilere Göre Toplam Tutar"
+                data={tedarikciTutarData}
+                dataKey="value"
+                nameKey="name"
+                defaultType="bar"
+                valueFormatter={formatCurrency}
+                height={360}
+                sort={false}
+                expanded={showAllTutar}
+                showPct={true}
+              />
+              {tedarikciTutarFull.length > TOP_N && (
+                <ShowAllBtn
+                  show={showAllTutar}
+                  onToggle={() => setShowAllTutar(v => !v)}
+                  total={tedarikciTutarFull.length}
                 />
-              </div>
-              <button 
-                className="show-all-btn"
-                onClick={() => setShowAllTutar(!showAllTutar)}
-              >
-                {showAllTutar ? 'İlk 10\'u Göster' : `Hepsini Göster (${tedarikciTutarData.length})`}
-              </button>
+              )}
             </div>
-
-            <div className={`chart-container ${showAllAdet ? 'scrollable-x' : ''}`}>
-              <div style={{ minWidth: showAllAdet ? `${Math.max(tedarikciAdetData.length * 60, 1200)}px` : 'auto' }}>
-                <SwitchableChart
-                  title="Tedarikçilere Göre Sipariş Adedi"
-                  data={showAllAdet ? tedarikciAdetData : tedarikciAdetData.slice(0, 10)}
-                  dataKey="value"
-                  nameKey="name"
-                  defaultType="bar"
-                  height={400}
-                  scrollable={false}
-                  itemHeight={35}
-                  allowedChartTypes={['bar', 'horizontal']}
-                  onClick={onChartClick}
-                  filterField="CARI_UNVANI"
+            <div style={showAllAdet ? { gridColumn: 'span 2' } : {}}>
+              <SwitchableChart
+                title="Tedarikçilere Göre Sipariş Adedi"
+                data={tedarikciAdetData}
+                dataKey="value"
+                nameKey="name"
+                defaultType="bar"
+                height={360}
+                sort={false}
+                expanded={showAllAdet}
+              />
+              {tedarikciAdetFull.length > TOP_N && (
+                <ShowAllBtn
+                  show={showAllAdet}
+                  onToggle={() => setShowAllAdet(v => !v)}
+                  total={tedarikciAdetFull.length}
                 />
-              </div>
-              <button 
-                className="show-all-btn"
-                onClick={() => setShowAllAdet(!showAllAdet)}
-              >
-                {showAllAdet ? 'İlk 10\'u Göster' : `Hepsini Göster (${tedarikciAdetData.length})`}
-              </button>
+              )}
             </div>
           </>
         )}

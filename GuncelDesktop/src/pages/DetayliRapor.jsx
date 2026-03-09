@@ -1,73 +1,20 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Table, Input, DatePicker, Button, Space, Tag, Tooltip, Badge, Switch } from 'antd';
-import { SearchOutlined, ReloadOutlined, DownloadOutlined, ExpandAltOutlined, ShrinkOutlined } from '@ant-design/icons';
+import { SearchOutlined, ReloadOutlined, DownloadOutlined, ExpandAltOutlined, ShrinkOutlined, PaperClipOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import DosyaYonetimi from '../components/DosyaYonetimi';
+import { formatCurrency, formatUnitPrice } from '../components/SwitchableChart';
 
 const { RangePicker } = DatePicker;
 
-const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFilter }) => {
+const DetayliRapor = ({ data, selectedIsyeri, columns }) => {
   const [searchText, setSearchText] = useState('');
   const [dateRange, setDateRange] = useState(null);
   const [pageSize, setPageSize] = useState(20);
   const [expandedRowKeys, setExpandedRowKeys] = useState([]);
   const [groupByOrder, setGroupByOrder] = useState(true); // Varsayılan: gruplu görünüm
-
-  // Dış filtre değiştiğinde uygun filtreyi güncelle
-  React.useEffect(() => {
-    if (externalFilter && externalFilter.value) {
-      // Tarih filtresi ise dateRange kullan
-      if (externalFilter.field === 'ay' || externalFilter.field === 'SIPARIS_TARIHI') {
-        const value = externalFilter.value;
-        
-        // Format 1: "Oca 2026" gibi
-        const monthNames = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-        const parts = value.split(' ');
-        if (parts.length === 2) {
-          const monthIndex = monthNames.findIndex(m => m.toLowerCase() === parts[0].toLowerCase());
-          const year = parseInt(parts[1]);
-          if (monthIndex !== -1 && !isNaN(year)) {
-            const startDate = dayjs().year(year).month(monthIndex).startOf('month');
-            const endDate = dayjs().year(year).month(monthIndex).endOf('month');
-            setDateRange([startDate, endDate]);
-            setSearchText('');
-            return;
-          }
-        }
-        
-        // Format 2: "2026-01" gibi (YYYY-MM)
-        const dashParts = value.split('-');
-        if (dashParts.length === 2) {
-          const year = parseInt(dashParts[0]);
-          const month = parseInt(dashParts[1]) - 1; // 0-indexed
-          if (!isNaN(year) && !isNaN(month) && month >= 0 && month <= 11) {
-            const startDate = dayjs().year(year).month(month).startOf('month');
-            const endDate = dayjs().year(year).month(month).endOf('month');
-            setDateRange([startDate, endDate]);
-            setSearchText('');
-            return;
-          }
-        }
-        
-        // Format 3: "Ocak 2026" gibi (tam ay adı)
-        const fullMonthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-        const fullParts = value.split(' ');
-        if (fullParts.length === 2) {
-          const monthIndex = fullMonthNames.findIndex(m => m.toLowerCase() === fullParts[0].toLowerCase());
-          const year = parseInt(fullParts[1]);
-          if (monthIndex !== -1 && !isNaN(year)) {
-            const startDate = dayjs().year(year).month(monthIndex).startOf('month');
-            const endDate = dayjs().year(year).month(monthIndex).endOf('month');
-            setDateRange([startDate, endDate]);
-            setSearchText('');
-            return;
-          }
-        }
-      }
-      // Diğer filtreler için searchText kullan
-      setSearchText(externalFilter.value);
-      setDateRange(null);
-    }
-  }, [externalFilter]);
+  const [dosyaModalSiparis, setDosyaModalSiparis] = useState(null);
+  const [dosyaSayilari, setDosyaSayilari] = useState({});
 
   // Kolon isimlerini al (columns prop'undan veya varsayilan)
   const C = columns || {
@@ -82,7 +29,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
     BIRIM_FIYAT: 'BİRİM FİYAT',
     TOPLAM: 'TOPLAM',
     PARA_BIRIMI: 'PARA BİRİMİ',
-    ODEME_VADESI: 'ÖDEME VADESİ',
+    ODEME_VADESI: 'Ö-DEME VADESİ',
     TESLIM_EVRAK_NO: 'TESLİM EVRAK NO',
     ISYERI: 'İŞ YERİ'
   };
@@ -111,67 +58,17 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
     });
   }, [data, columns]);
 
-  // Filtreleme - ambar filtresi dahil
+  // Filtreleme - isyeri filtresi dahil
   const filteredData = useMemo(() => {
     let result = normalizedData || [];
 
-    // Ambar filtresi (büyük/küçük harf duyarsız)
-    if (selectedAmbar && selectedAmbar !== 'all') {
-      const normalizedFilter = selectedAmbar.toLocaleUpperCase('tr-TR');
-      result = result.filter(item => (item['AMBAR'] || '').toLocaleUpperCase('tr-TR') === normalizedFilter);
+    // Isyeri filtresi
+    if (selectedIsyeri && selectedIsyeri !== 'all' && C.ISYERI) {
+      result = result.filter(item => item['ISYERI'] === selectedIsyeri);
     }
 
-    // Dış filtre (grafikten gelen) - tarih filtreleri hariç (onlar dateRange ile)
-    if (externalFilter && externalFilter.field && externalFilter.value && externalFilter.field !== 'ay' && externalFilter.field !== 'SIPARIS_TARIHI') {
-      const filterValue = externalFilter.value.toLowerCase();
-      const field = externalFilter.field;
-      
-      // Filtre alanına göre uygun kolonları ara
-      result = result.filter(item => {
-        // Alan adına göre hangi kolonlarda arama yapılacağını belirle
-        switch (field) {
-          case 'TALEP_EDEN':
-            return (item['TALEP_EDEN'] || '').toString().toLowerCase().includes(filterValue);
-          case 'CARI_UNVANI':
-          case 'tedarikci':
-            return (item['CARI_UNVANI'] || '').toString().toLowerCase().includes(filterValue);
-          case 'MASRAF_MERKEZI':
-            return (item['MASRAF_MERKEZI'] || '').toString().toLowerCase().includes(filterValue);
-          case 'PARA_BIRIMI':
-            return (item['PARA_BIRIMI'] || '').toString().toLowerCase() === filterValue;
-          case 'ODEME_VADESI':
-            return (item['ODEME_VADESI'] || '').toString().toLowerCase().includes(filterValue);
-          case 'TESLIM_DURUMU':
-          case 'durum':
-            const evrakNo = item['TESLIM_EVRAK_NO'];
-            const teslimEdildi = evrakNo && String(evrakNo).trim() !== '';
-            if (filterValue.includes('teslim') && !filterValue.includes('bekl')) {
-              return teslimEdildi;
-            } else if (filterValue.includes('bekl') || filterValue.includes('teslim edilmedi')) {
-              return !teslimEdildi;
-            }
-            return true;
-          case 'AMBAR':
-          case 'fabrika':
-            return (item['AMBAR'] || '').toString().toLowerCase().includes(filterValue);
-          case 'ONAYLAYAN':
-            return (item['ONAYLAYAN'] || '').toString().toLowerCase().includes(filterValue);
-          default:
-            // Genel arama - tüm alanlarda
-            return (item['TALEP_NO'] || '').toString().toLowerCase().includes(filterValue) ||
-              (item['SIPARIS_NO'] || '').toString().toLowerCase().includes(filterValue) ||
-              (item['TALEP_EDEN'] || '').toString().toLowerCase().includes(filterValue) ||
-              (item['CARI_UNVANI'] || '').toString().toLowerCase().includes(filterValue) ||
-              (item['SIPARIS_MALZEME'] || '').toString().toLowerCase().includes(filterValue) ||
-              (item['MASRAF_MERKEZI'] || '').toString().toLowerCase().includes(filterValue) ||
-              (item['PARA_BIRIMI'] || '').toString().toLowerCase().includes(filterValue) ||
-              (item['ODEME_VADESI'] || '').toString().toLowerCase().includes(filterValue);
-        }
-      });
-    }
-
-    // Metin aramasi (sadece dış filtre yoksa veya ek arama yapılacaksa)
-    if (searchText && (!externalFilter || !externalFilter.value || searchText !== externalFilter.value)) {
+    // Metin aramasi
+    if (searchText) {
       const search = searchText.toLowerCase();
       result = result.filter(item =>
         (item['TALEP_NO'] || '').toString().toLowerCase().includes(search) ||
@@ -194,7 +91,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
     }
 
     return result;
-  }, [normalizedData, searchText, dateRange, selectedAmbar, C]);
+  }, [normalizedData, searchText, dateRange, selectedIsyeri, C]);
 
   // Sipariş bazlı gruplama
   const groupedData = useMemo(() => {
@@ -224,17 +121,50 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       group.items.push({ ...item, _itemKey: `${siparisNo}_item_${group.items.length}` });
       
       const tryVal = item['TOPLAM_TRY'] ?? item['TOPLAM'];
-      group.totalTRY += Number(tryVal) || 0;
+      // Türkçe ondalık virgüllü string'leri de doğru parse et
+      const tryNum = typeof tryVal === 'number' ? tryVal
+        : parseFloat(String(tryVal ?? '0').trim().replace(/\./g, '').replace(',', '.')) || 0;
+      group.totalTRY += tryNum;
       
-      // Herhangi bir kalem teslim edildiyse siparişi teslim edilmiş say (FATURAYI_KAYDEDEN dolu ise)
-      const faturaKaydeden = item['FATURAYI_KAYDEDEN'];
-      if (faturaKaydeden && String(faturaKaydeden).trim() !== '') {
+      // Herhangi bir kalem teslim edildiyse siparişi teslim edilmiş say
+      const evrakNo = item['TESLIM_EVRAK_NO'];
+      if (evrakNo && String(evrakNo).trim() !== '') {
         group.isDelivered = true;
       }
     });
     
-    return Array.from(groups.values());
+    return Array.from(groups.values()).sort((a, b) => {
+      const dateA = a.SIPARIS_TARIHI ? new Date(a.SIPARIS_TARIHI) : new Date(0);
+      const dateB = b.SIPARIS_TARIHI ? new Date(b.SIPARIS_TARIHI) : new Date(0);
+      return dateB - dateA;
+    });
   }, [filteredData, groupByOrder]);
+
+  // Dosya sayılarını yükle
+  const loadDosyaSayilari = useCallback(async () => {
+    // Hem gruplu hem düz liste modunda benzersiz sipariş numaralarını topla
+    const siparisSet = new Set();
+    if (groupedData) {
+      groupedData.forEach(g => { if (g.SIPARIS_NO && !g.SIPARIS_NO.startsWith('NO_ORDER_')) siparisSet.add(g.SIPARIS_NO); });
+    } else {
+      filteredData.forEach(r => { if (r.SIPARIS_NO) siparisSet.add(r.SIPARIS_NO); });
+    }
+    const siparisNolar = Array.from(siparisSet);
+    if (siparisNolar.length === 0) return;
+    try {
+      const result = await window.api.dosyaSayilari(siparisNolar);
+      if (result.success && result.data) {
+        // API doğrudan { "S.032...": 3, ... } map objesi döndürür
+        setDosyaSayilari(result.data);
+      }
+    } catch (err) {
+      console.error('Dosya sayıları alınamadı:', err);
+    }
+  }, [groupedData, filteredData]);
+
+  useEffect(() => {
+    loadDosyaSayilari();
+  }, [loadDosyaSayilari]);
 
   // Çoklu kalem içeren sipariş sayısı
   const multiItemOrderCount = useMemo(() => {
@@ -258,7 +188,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
             <Badge 
               count={`${record.items.length} kalem`} 
               style={{ 
-                backgroundColor: '#7c3aed', 
+                backgroundColor: '#3b82f6', 
                 fontSize: 11,
                 fontWeight: 500,
               }} 
@@ -274,6 +204,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       width: 110,
       render: (date) => date ? dayjs(date).format('DD.MM.YYYY') : '-',
       sorter: (a, b) => new Date(a['SIPARIS_TARIHI'] || 0) - new Date(b['SIPARIS_TARIHI'] || 0),
+      defaultSortOrder: 'descend',
     },
     {
       title: 'Tedarikçi',
@@ -306,7 +237,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       align: 'center',
       sorter: (a, b) => a.items.length - b.items.length,
       render: (_, record) => (
-        <Tag color={record.items.length > 1 ? 'purple' : 'default'} style={{ fontWeight: 600 }}>
+        <Tag color={record.items.length > 1 ? 'blue' : 'default'} style={{ fontWeight: 600 }}>
           {record.items.length}
         </Tag>
       ),
@@ -319,7 +250,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       sorter: (a, b) => a.totalTRY - b.totalTRY,
       render: (_, record) => (
         <span style={{ fontWeight: 600, color: '#059669' }}>
-          {record.totalTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+          {formatCurrency(record.totalTRY)}
         </span>
       ),
     },
@@ -335,7 +266,6 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       title: 'Teslim Durumu',
       key: 'teslimDurumu',
       width: 120,
-      fixed: 'right',
       render: (_, record) => {
         if (record.isDelivered) {
           return <Tag color="green">Teslim Edildi</Tag>;
@@ -349,6 +279,29 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       onFilter: (value, record) => {
         if (value === 'teslim') return record.isDelivered;
         return !record.isDelivered;
+      },
+    },
+    {
+      title: 'Dosya',
+      key: 'dosya',
+      width: 80,
+      align: 'center',
+      fixed: 'right',
+      render: (_, record) => {
+        const count = dosyaSayilari[record.SIPARIS_NO] || 0;
+        return (
+          <Tooltip title="Dosya Yönetimi">
+            <Button
+              type="text"
+              size="small"
+              icon={<PaperClipOutlined />}
+              onClick={(e) => { e.stopPropagation(); setDosyaModalSiparis(record.SIPARIS_NO); }}
+              style={{ color: count > 0 ? '#3b82f6' : '#bfbfbf' }}
+            >
+              {count > 0 && <Badge count={count} size="small" style={{ backgroundColor: '#3b82f6', marginLeft: 2 }} />}
+            </Button>
+          </Tooltip>
+        );
       },
     },
   ];
@@ -375,7 +328,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       key: 'miktar',
       width: 80,
       align: 'right',
-      render: (val) => val != null ? Number(val).toLocaleString('tr-TR') : '-',
+      render: (val) => val != null ? Number(val) : '-',
     },
     {
       title: 'Birim Fiyatı',
@@ -383,7 +336,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       key: 'birimFiyat',
       width: 120,
       align: 'right',
-      render: (val) => val != null ? `${Number(val).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺` : '-',
+      render: (val) => val != null ? formatUnitPrice(val) : '-',
     },
     {
       title: 'Toplam (TRY)',
@@ -392,7 +345,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       align: 'right',
       render: (_, r) => {
         const val = r.TOPLAM_TRY ?? r.TOPLAM;
-        return val != null ? `${Number(val).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺` : '-';
+        return val != null ? formatCurrency(Number(val)) : '-';
       },
     },
     {
@@ -455,6 +408,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       width: 110,
       render: (date) => date ? dayjs(date).format('DD.MM.YYYY') : '-',
       sorter: (a, b) => new Date(a['SIPARIS_TARIHI'] || 0) - new Date(b['SIPARIS_TARIHI'] || 0),
+      defaultSortOrder: 'descend',
     },
     {
       title: 'Tedarikçi',
@@ -486,7 +440,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       key: 'miktar',
       width: 80,
       align: 'right',
-      render: (val) => val != null ? Number(val).toLocaleString('tr-TR') : '-',
+      render: (val) => val != null ? Number(val) : '-',
     },
     {
       title: 'Birim Fiyatı',
@@ -494,7 +448,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       key: 'birimFiyat',
       width: 110,
       align: 'right',
-      render: (val) => val != null ? `${Number(val).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺` : '-',
+      render: (val) => val != null ? formatUnitPrice(val) : '-',
     },
     {
       title: 'Toplam (TRY)',
@@ -504,7 +458,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       align: 'right',
       render: (v, r) => {
         const val = v ?? r.TOPLAM;
-        return val != null ? `${Number(val).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺` : '-';
+        return val != null ? formatCurrency(Number(val)) : '-';
       },
       sorter: (a, b) => (a.TOPLAM_TRY ?? a.TOPLAM) - (b.TOPLAM_TRY ?? b.TOPLAM),
     },
@@ -552,6 +506,30 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
         return !evrakNo || String(evrakNo).trim() === '';
       },
     },
+    {
+      title: 'Dosya',
+      key: 'dosyaFlat',
+      width: 80,
+      align: 'center',
+      fixed: 'right',
+      render: (_, record) => {
+        const sipNo = record['SIPARIS_NO'];
+        const count = dosyaSayilari[sipNo] || 0;
+        return (
+          <Tooltip title="Dosya Yönetimi">
+            <Button
+              type="text"
+              size="small"
+              icon={<PaperClipOutlined />}
+              onClick={(e) => { e.stopPropagation(); setDosyaModalSiparis(sipNo); }}
+              style={{ color: count > 0 ? '#3b82f6' : '#bfbfbf' }}
+            >
+              {count > 0 && <Badge count={count} size="small" style={{ backgroundColor: '#3b82f6', marginLeft: 2 }} />}
+            </Button>
+          </Tooltip>
+        );
+      },
+    },
   ];
 
   // Genişletilmiş satır render fonksiyonu
@@ -573,8 +551,8 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
           gap: 10,
           fontWeight: 500
         }}>
-          <span style={{ fontSize: 16 }}>📦</span>
-          <span>Bu siparişe ait <strong style={{ color: '#7c3aed' }}>{record.items.length}</strong> kalem:</span>
+          <span style={{ fontSize: 16 }}>gY"ş</span>
+          <span>Bu siparişe ait <strong style={{ color: '#3b82f6' }}>{record.items.length}</strong> kalem:</span>
         </div>
         <Table
           columns={expandedColumns}
@@ -655,44 +633,8 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
         <p>Tüm satın alma kayıtlarının detaylı listesi ve filtreleme</p>
       </div>
 
-      {/* Aktif Filtre Göstergesi */}
-      {externalFilter && externalFilter.value && (
-        <div style={{ 
-          margin: '0 28px 16px', 
-          padding: '12px 16px', 
-          background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', 
-          borderRadius: 8,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          border: '1px solid #c4b5fd'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>🔍</span>
-            <span style={{ fontWeight: 500, color: '#5b21b6' }}>
-              Aktif Filtre: <strong>{externalFilter.field === 'ay' ? 'Tarih' : externalFilter.field}</strong> = "{externalFilter.value}"
-              {(externalFilter.field === 'ay' || externalFilter.field === 'SIPARIS_TARIHI') && dateRange && dateRange[0] && dateRange[1] && (
-                <span> ({dateRange[0].format('DD.MM.YYYY')} - {dateRange[1].format('DD.MM.YYYY')})</span>
-              )}
-            </span>
-          </div>
-          <Button 
-            type="text" 
-            danger
-            onClick={() => {
-              setSearchText('');
-              setDateRange(null);
-              if (onClearFilter) onClearFilter();
-            }}
-            style={{ fontWeight: 500 }}
-          >
-            Filtreyi Kaldır ✕
-          </Button>
-        </div>
-      )}
-
       {/* Filters */}
-      <div className="data-table-container" style={{ margin: '24px 28px 20px' }}>
+      <div className="data-table-container" style={{ margin: '24px 32px 20px' }}>
         <div className="filter-section">
           <Space wrap size="middle">
             <Input
@@ -705,15 +647,10 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
             />
             <RangePicker
               placeholder={["Başlangıç", "Bitiş"]}
-              value={dateRange}
               onChange={setDateRange}
               format="DD.MM.YYYY"
             />
-            <Button icon={<ReloadOutlined />} onClick={() => { 
-              setSearchText(''); 
-              setDateRange(null); 
-              if (onClearFilter) onClearFilter();
-            }}>
+            <Button icon={<ReloadOutlined />} onClick={() => { setSearchText(''); setDateRange(null); }}>
               Sıfırla
             </Button>
             <Button type="primary" icon={<DownloadOutlined />} onClick={handleExport}>
@@ -744,7 +681,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
                 onChange={setGroupByOrder}
                 checkedChildren="Gruplu"
                 unCheckedChildren="Liste"
-                style={{ background: groupByOrder ? '#7c3aed' : undefined }}
+                style={{ background: groupByOrder ? '#3b82f6' : undefined }}
               />
             </div>
             
@@ -770,11 +707,11 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
             </span>
             {groupByOrder && multiItemOrderCount > 0 && (
               <span style={{ fontSize: 13 }}>
-                <strong>Çok Kalemli:</strong> <Tag color="purple">{multiItemOrderCount}</Tag>
+                <strong>Çok Kalemli:</strong> <Tag color="blue">{multiItemOrderCount}</Tag>
               </span>
             )}
             <span style={{ fontSize: 13 }}>
-              <strong>Toplam:</strong> <span style={{ color: '#059669', fontWeight: 600 }}>{toplamTutar.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>
+              <strong>Toplam:</strong> <span style={{ color: '#059669', fontWeight: 600 }}>{formatCurrency(toplamTutar)}</span>
             </span>
             <span style={{ fontSize: 13 }}>
               <Tag color="green">Teslim: {teslimEdilen}</Tag>
@@ -791,7 +728,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
             columns={groupedColumns}
             dataSource={groupedData}
             rowKey="key"
-            scroll={{ x: 1400, y: 500 }}
+            scroll={{ x: 1500, y: 500 }}
             expandable={{
               expandedRowRender,
               expandedRowKeys,
@@ -814,7 +751,7 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
             columns={flatColumns}
             dataSource={filteredData}
             rowKey={(record, index) => `${record['SIPARIS_NO']}_${record['TALEP_NO']}_${index}`}
-            scroll={{ x: 1900, y: 500 }}
+            scroll={{ x: 2000, y: 500 }}
             pagination={{
               pageSize: pageSize,
               showSizeChanger: true,
@@ -831,10 +768,10 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
       {/* Custom styles */}
       <style>{`
         .multi-item-row {
-          background: linear-gradient(90deg, rgba(124, 58, 237, 0.03) 0%, transparent 100%);
+          background: linear-gradient(90deg, rgba(59, 130, 246, 0.03) 0%, transparent 100%);
         }
         .multi-item-row:hover > td {
-          background: rgba(124, 58, 237, 0.08) !important;
+          background: rgba(59, 130, 246, 0.06) !important;
         }
         .ant-table-expanded-row > td {
           background: transparent !important;
@@ -847,6 +784,14 @@ const DetayliRapor = ({ data, selectedAmbar, columns, externalFilter, onClearFil
           background: #fff;
         }
       `}</style>
+
+      {/* Dosya Yönetimi Modalı */}
+      <DosyaYonetimi
+        visible={!!dosyaModalSiparis}
+        siparisNo={dosyaModalSiparis}
+        onClose={() => setDosyaModalSiparis(null)}
+        onDosyaSayisiDegisti={loadDosyaSayilari}
+      />
     </div>
   );
 };

@@ -1,22 +1,22 @@
 import React from 'react';
 import {
-  DashboardOutlined,
-  FileTextOutlined,
+  AppstoreOutlined,
+  FileSearchOutlined,
   ShoppingCartOutlined,
   TeamOutlined,
-  DollarOutlined,
-  TableOutlined,
+  FundOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 
 import logoImgInline from '../../assets/logo.jpg?inline';
 
 const menuItems = [
-  { key: 'dashboard', icon: <DashboardOutlined />, label: 'Satınalma Verilerinin Gösterim Alanı' },
-  { key: 'talep', icon: <FileTextOutlined />, label: 'Talep Analizi' },
+  { key: 'dashboard', icon: <AppstoreOutlined />, label: 'Dashboard' },
+  { key: 'talep', icon: <FileSearchOutlined />, label: 'Talep Analizi' },
   { key: 'siparis', icon: <ShoppingCartOutlined />, label: 'Sipariş Analizi' },
   { key: 'tedarikci', icon: <TeamOutlined />, label: 'Tedarikçi Analizi' },
-  { key: 'finansal', icon: <DollarOutlined />, label: 'Finansal Analiz' },
-  { key: 'detay', icon: <TableOutlined />, label: 'Detaylı Rapor' },
+  { key: 'finansal', icon: <FundOutlined />, label: 'Finansal Analiz' },
+  { key: 'detay', icon: <DatabaseOutlined />, label: 'Detaylı Rapor' },
 ];
 
 const Sidebar = ({ currentPage, setCurrentPage }) => {
@@ -28,7 +28,7 @@ const Sidebar = ({ currentPage, setCurrentPage }) => {
         </div>
         <div className="logo-text">
           <h1>Satın Alma</h1>
-          <p>ERP Rapor Sistemi</p>
+          <p>Rapor Sistemi</p>
         </div>
       </div>
       <nav className="sidebar-menu">
@@ -37,6 +37,7 @@ const Sidebar = ({ currentPage, setCurrentPage }) => {
             key={item.key}
             className={`menu-item ${currentPage === item.key ? 'active' : ''}`}
             onClick={() => setCurrentPage(item.key)}
+            title={item.label}
           >
             <span className="icon">{item.icon}</span>
             <span className="menu-text">{item.label}</span>
@@ -44,7 +45,7 @@ const Sidebar = ({ currentPage, setCurrentPage }) => {
         ))}
       </nav>
       <div className="sidebar-footer">
-        v1.0.0 | Enterprise Edition
+        v1.0.9 — Enterprise
       </div>
     </aside>
   );

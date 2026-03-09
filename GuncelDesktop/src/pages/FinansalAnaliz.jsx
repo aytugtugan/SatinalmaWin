@@ -1,84 +1,74 @@
-import React from 'react';
+﻿import React, { useState } from 'react';
 import { SwitchableChart, formatNumber, formatCurrency } from '../components/SwitchableChart';
-import {
-  DollarOutlined,
-  GlobalOutlined,
-  FieldTimeOutlined,
-  BankOutlined,
-} from '@ant-design/icons';
+import CompareSwitch from '../components/CompareSwitch';
+import ComparisonChart from '../components/ComparisonChart';
+import { DollarOutlined, GlobalOutlined, FieldTimeOutlined, BankOutlined } from '@ant-design/icons';
 
-const FinansalAnaliz = ({ data, fabrikaKarsilastirma = false, onChartClick }) => {
+const TOP_N = 10;
+
+const ShowAllBtn = ({ show, onToggle, total }) => (
+  <div style={{ textAlign: 'center', marginTop: -4, marginBottom: 16 }}>
+    <button
+      onClick={onToggle}
+      style={{
+        background: 'none', border: '1px solid #e2e8f0', borderRadius: 8,
+        padding: '6px 18px', cursor: 'pointer', fontSize: 12,
+        color: '#3b82f6', fontWeight: 600, transition: 'all 0.15s ease',
+      }}
+    >
+      {show ? `İlk ${TOP_N}'u Göster` : `Tümünü Gör (${total})`}
+    </button>
+  </div>
+);
+
+const FinansalAnaliz = ({ data, comparisonData = {}, selectedAmbar = 'all' }) => {
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [showAllVadeAdet, setShowAllVadeAdet] = useState(false);
+  const [showAllVadeTutar, setShowAllVadeTutar] = useState(false);
+  const [showAllParaTutar, setShowAllParaTutar] = useState(false);
+  const [showAllParaAdet, setShowAllParaAdet] = useState(false);
+
   if (!data) return null;
+  const { paraBirimi, odemeVadesi, summary, monthlyTrend } = data;
 
-  const { paraBirimi, odemeVadesi, summary, monthlyTrend, ambar } = data;
-
-  // Para birimine gore dagilim
-  // Prefer converted TRY amounts when available
-  const paraBirimiData = (data.paraBirimiConverted && data.paraBirimiConverted.length)
-    ? data.paraBirimiConverted.map(p => ({ name: p.paraBirimi || 'TRY', value: p.convertedTRY || p.toplam || 0, adet: p.kayitAdedi || 0 }))
-    : (paraBirimi || []).map(item => ({ name: item.paraBirimi || 'TRY', value: item.toplamTutar, adet: item.kayitAdedi }));
-
-  // Para birimine gore adet
-  const paraBirimiAdetData = (data.paraBirimiConverted && data.paraBirimiConverted.length)
-    ? data.paraBirimiConverted.map(p => ({ name: p.paraBirimi || 'TRY', value: p.kayitAdedi || 0 }))
-    : (paraBirimi || []).map(item => ({ name: item.paraBirimi || 'TRY', value: item.kayitAdedi }));
-
-  // Odeme vadesine gore dagilim - siparisAdedi veya kayitAdedi kullan
-  const odemeVadesiDataGrouped = (odemeVadesi || [])
-    .filter(item => item.odemeVadesi && item.odemeVadesi !== 'Belirsiz')
-    .reduce((acc, item) => {
-      const key = String(item.odemeVadesi).trim();
-      const existing = acc.find(x => x.name === key);
-      if (existing) {
-        existing.value += (item.siparisAdedi || item.kayitAdedi || item.talepAdedi || 0);
-      } else {
-        acc.push({ name: key, value: item.siparisAdedi || item.kayitAdedi || item.talepAdedi || 0 });
-      }
-      return acc;
-    }, []);
-  const odemeVadesiData = odemeVadesiDataGrouped;
-
-  // Odeme vadesine gore tutar
-  const odemeVadesiTutarDataGrouped = (odemeVadesi || [])
-    .filter(item => item.odemeVadesi && item.odemeVadesi !== 'Belirsiz')
-    .reduce((acc, item) => {
-      const key = String(item.odemeVadesi).trim();
-      const existing = acc.find(x => x.name === key);
-      if (existing) {
-        existing.value += (item.toplamTutar || 0);
-      } else {
-        acc.push({ name: key, value: item.toplamTutar || 0 });
-      }
-      return acc;
-    }, []);
-  const odemeVadesiTutarData = odemeVadesiTutarDataGrouped;
-
-  // Aylik harcama trendi
-  const aylikHarcamaData = (monthlyTrend || []).slice(0, 12).reverse().map(item => ({
-    name: item.ay,
-    value: item.toplamTutar || 0,
-  }));
-
-  // Ortalama siparis tutari
-  const ortalamaTutar = summary?.ortalamaTutar || 0;
-
-  // Fabrikaya gore tutar
-  const fabrikaTutarData = (ambar || [])
+  const paraBirimiFull = (paraBirimi || [])
     .slice()
     .sort((a, b) => (b.toplamTutar || 0) - (a.toplamTutar || 0))
-    .map(item => ({
-      name: item.ambar || 'Belirsiz',
-      value: item.toplamTutar || 0,
-    }));
+    .map(i => ({ name: i.paraBirimi || 'TRY', value: i.toplamTutar || 0 }));
+  const paraBirimiData = showAllParaTutar ? paraBirimiFull : paraBirimiFull.slice(0, TOP_N);
 
-  // Fabrikaya gore siparis adedi
-  const fabrikaAdetData = (ambar || [])
+  const paraBirimiAdetFull = (paraBirimi || [])
     .slice()
-    .sort((a, b) => (b.siparisAdedi || 0) - (a.siparisAdedi || 0))
-    .map(item => ({
-      name: item.ambar || 'Belirsiz',
-      value: item.siparisAdedi || item.kayitAdedi || 0,
-    }));
+    .sort((a, b) => (b.kayitAdedi || 0) - (a.kayitAdedi || 0))
+    .map(i => ({ name: i.paraBirimi || 'TRY', value: i.kayitAdedi || 0 }));
+  const paraBirimiAdetData = showAllParaAdet ? paraBirimiAdetFull : paraBirimiAdetFull.slice(0, TOP_N);
+
+  const sortedVade = (odemeVadesi || [])
+    .filter(i => i.odemeVadesi && i.odemeVadesi !== 'Belirsiz')
+    .slice()
+    .sort((a, b) => (b.siparisAdedi || b.kayitAdedi || 0) - (a.siparisAdedi || a.kayitAdedi || 0));
+
+  const sortedVadeTutar = (odemeVadesi || [])
+    .filter(i => i.odemeVadesi && i.odemeVadesi !== 'Belirsiz')
+    .slice()
+    .sort((a, b) => (b.toplamTutar || 0) - (a.toplamTutar || 0));
+
+  const vadeFull = sortedVade.map(i => ({
+    name: i.odemeVadesi,
+    value: i.siparisAdedi || i.kayitAdedi || i.talepAdedi || 0,
+  }));
+  const vadeTutarFull = sortedVadeTutar.map(i => ({
+    name: i.odemeVadesi,
+    value: i.toplamTutar || 0,
+  }));
+
+  const vadeData = showAllVadeAdet ? vadeFull : vadeFull.slice(0, TOP_N);
+  const vadeTutarData = showAllVadeTutar ? vadeTutarFull : vadeTutarFull.slice(0, TOP_N);
+
+  const aylikHarcamaData = (monthlyTrend || [])
+    .slice(0, 12)
+    .reverse()
+    .map(i => ({ name: i.ay, value: i.toplamTutar || 0 }));
 
   return (
     <div>
@@ -87,87 +77,40 @@ const FinansalAnaliz = ({ data, fabrikaKarsilastirma = false, onChartClick }) =>
         <p>Harcama ve ödeme analizleri, bütçe takibi</p>
       </div>
 
-      {/* KPI Cards */}
       <div className="kpi-grid">
         <div className="kpi-card">
-          <div className="kpi-icon blue">
-            <DollarOutlined />
-          </div>
+          <div className="kpi-icon blue"><DollarOutlined /></div>
           <div className="kpi-value">{formatCurrency(summary?.toplamTutarTRY ?? summary?.toplamTutar ?? 0)}</div>
           <div className="kpi-label">Toplam Harcama</div>
         </div>
-
         <div className="kpi-card">
-          <div className="kpi-icon green">
-            <GlobalOutlined />
-          </div>
+          <div className="kpi-icon green"><BankOutlined /></div>
+          <div className="kpi-value">{formatCurrency(summary?.ortalamaTutar || 0)}</div>
+          <div className="kpi-label">Ortalama Sipariş Tutarı</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-icon orange"><GlobalOutlined /></div>
           <div className="kpi-value">{paraBirimi?.length || 0}</div>
           <div className="kpi-label">Para Birimi Çeşidi</div>
         </div>
+        <div className="kpi-card">
+          <div className="kpi-icon purple"><FieldTimeOutlined /></div>
+          <div className="kpi-value">{odemeVadesi?.length || 0}</div>
+          <div className="kpi-label">Ödeme Vadesi Çeşidi</div>
+        </div>
       </div>
 
-      {/* Charts */}
+      <CompareSwitch
+        isVisible={selectedAmbar === 'all'}
+        isCompareMode={isCompareMode}
+        onToggle={() => setIsCompareMode(!isCompareMode)}
+      />
+
       <div className="charts-grid">
-        {fabrikaKarsilastirma ? (
+        {isCompareMode && selectedAmbar === 'all' ? (
           <>
-            <SwitchableChart
-              title="Fabrikalara Göre Harcama Tutarı"
-              data={fabrikaTutarData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              valueFormatter={formatCurrency}
-              height={320}
-              onClick={onChartClick}
-              filterField="AMBAR"
-            />
-
-            <SwitchableChart
-              title="Fabrikalara Göre İşlem Adedi"
-              data={fabrikaAdetData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              height={320}
-              onClick={onChartClick}
-              filterField="AMBAR"
-            />
-
-            <SwitchableChart
-              title="Aylık Harcama Tutarı"
-              data={aylikHarcamaData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              valueFormatter={formatCurrency}
-              height={320}
-              onClick={onChartClick}
-              filterField="ay"
-            />
-
-            <SwitchableChart
-              title="Para Birimine Göre Tutar Dağılımı"
-              data={paraBirimiData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              valueFormatter={formatCurrency}
-              height={320}
-              onClick={onChartClick}
-              filterField="PARA_BIRIMI"
-            />
-
-            <SwitchableChart
-              title="Ödeme Vadesine Göre Tutar"
-              data={odemeVadesiTutarData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              valueFormatter={formatCurrency}
-              height={320}
-              onClick={onChartClick}
-              filterField="ODEME_VADESI"
-            />
+            <ComparisonChart title="Fabrikalara Göre Toplam Tutar" comparisonData={comparisonData} metric="toplamTutar" valueFormatter={formatCurrency} height={360} />
+            <ComparisonChart title="Fabrikalara Göre Sipariş Adedi" comparisonData={comparisonData} metric="siparisAdedi" valueFormatter={formatNumber} height={360} />
           </>
         ) : (
           <>
@@ -179,55 +122,77 @@ const FinansalAnaliz = ({ data, fabrikaKarsilastirma = false, onChartClick }) =>
               defaultType="bar"
               valueFormatter={formatCurrency}
               height={320}
-              onClick={onChartClick}
-              filterField="ay"
+              sort={false}
+              showPct={true}
             />
-
-            <SwitchableChart
-              title="Para Birimine Göre Tutar Dağılımı"
-              data={paraBirimiData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              valueFormatter={formatCurrency}
-              height={320}
-              onClick={onChartClick}
-              filterField="PARA_BIRIMI"
-            />
-
-            <SwitchableChart
-              title="Para Birimine Göre İşlem Adedi"
-              data={paraBirimiAdetData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              height={320}
-              onClick={onChartClick}
-              filterField="PARA_BIRIMI"
-            />
-
-            <SwitchableChart
-              title="Ödeme Vadesine Göre İşlem Adedi"
-              data={odemeVadesiData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              height={320}
-              onClick={onChartClick}
-              filterField="ODEME_VADESI"
-            />
-
-            <SwitchableChart
-              title="Ödeme Vadesine Göre Tutar"
-              data={odemeVadesiTutarData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              valueFormatter={formatCurrency}
-              height={320}
-              onClick={onChartClick}
-              filterField="ODEME_VADESI"
-            />
+            <div style={showAllParaTutar ? { gridColumn: 'span 2' } : {}}>
+              <SwitchableChart
+                title="Para Birimine Göre Tutar Dağılımı"
+                data={paraBirimiData}
+                dataKey="value"
+                nameKey="name"
+                defaultType="bar"
+                valueFormatter={formatCurrency}
+                height={320}
+                sort={false}
+                expanded={showAllParaTutar}
+                showPct={true}
+              />
+              {paraBirimiFull.length > TOP_N && <ShowAllBtn show={showAllParaTutar} onToggle={() => setShowAllParaTutar(v => !v)} total={paraBirimiFull.length} />}
+            </div>
+            <div style={showAllParaAdet ? { gridColumn: 'span 2' } : {}}>
+              <SwitchableChart
+                title="Para Birimine Göre İşlem Adedi"
+                data={paraBirimiAdetData}
+                dataKey="value"
+                nameKey="name"
+                defaultType="bar"
+                height={320}
+                sort={false}
+                expanded={showAllParaAdet}
+              />
+              {paraBirimiAdetFull.length > TOP_N && <ShowAllBtn show={showAllParaAdet} onToggle={() => setShowAllParaAdet(v => !v)} total={paraBirimiAdetFull.length} />}
+            </div>
+            <div style={showAllVadeAdet ? { gridColumn: 'span 2' } : {}}>
+              <SwitchableChart
+                title="Ödeme Vadesine Göre İşlem Adedi"
+                data={vadeData}
+                dataKey="value"
+                nameKey="name"
+                defaultType="bar"
+                height={320}
+                sort={false}
+                expanded={showAllVadeAdet}
+              />
+              {vadeFull.length > TOP_N && (
+                <ShowAllBtn
+                  show={showAllVadeAdet}
+                  onToggle={() => setShowAllVadeAdet(v => !v)}
+                  total={vadeFull.length}
+                />
+              )}
+            </div>
+            <div style={showAllVadeTutar ? { gridColumn: 'span 2' } : {}}>
+              <SwitchableChart
+                title="Ödeme Vadesine Göre Tutar"
+                data={vadeTutarData}
+                dataKey="value"
+                nameKey="name"
+                defaultType="bar"
+                valueFormatter={formatCurrency}
+                height={320}
+                sort={false}
+                expanded={showAllVadeTutar}
+                showPct={true}
+              />
+              {vadeTutarFull.length > TOP_N && (
+                <ShowAllBtn
+                  show={showAllVadeTutar}
+                  onToggle={() => setShowAllVadeTutar(v => !v)}
+                  total={vadeTutarFull.length}
+                />
+              )}
+            </div>
           </>
         )}
       </div>

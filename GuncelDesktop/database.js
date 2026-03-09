@@ -910,4 +910,118 @@ async function getDashboardStats(isyeriFilter) {
    };
  }
 
-module.exports = { executeQuery, getAllData, getDashboardStats, getIsyeriList, getAmbarList, getColumnMapping };
+// Fabrika karsilastirma verileri
+async function getFactoryComparisonData() {
+  const ambarListData = await getAmbarList();
+  const C = await getColumnNames();
+  const comparisonData = {};
+
+  for (const ambarItem of ambarListData) {
+    const ambar = ambarItem.ambar;
+    const normalizedAmbar = normalizeAmbarName(ambar);
+    
+    // SQL'den bu ambar için verileri çek
+    const defaultDateClause = `([${C.TALEP_TARIHI}] >= '${DATE_FILTER}' OR [${C.SIPARIS_TARIHI}] >= '${DATE_FILTER}')`;
+    const turClause = `([${C.TUR}] IS NOT NULL AND [${C.TUR}] <> '')`;
+    const ambarClause = `UPPER([${C.AMBAR}]) = N'${normalizedAmbar.replace(/'/g, "''")}'`;
+    
+    const sqlQuery = `
+      SELECT 
+        COUNT(DISTINCT [${C.SIPARIS_NO}]) as siparisAdedi,
+        COUNT(DISTINCT [${C.TALEP_NO}]) as talepAdedi,
+        ISNULL(SUM([${C.TOPLAM}]), 0) as toplamTutar
+      FROM (
+        SELECT *, ROW_NUMBER() OVER (
+          PARTITION BY [${C.SIPARIS_NO}], [${C.SIPARIS_MALZEME}], [${C.MIKTAR}], [${C.BIRIM_FIYAT}]
+          ORDER BY (SELECT NULL)
+        ) as _rn
+        FROM YLZ_TALEP_SIPARIS
+        WHERE ${defaultDateClause} AND ${turClause} AND ${ambarClause}
+      ) dd WHERE dd._rn = 1
+    `;
+    
+    let sqlSiparis = 0, sqlTalep = 0, sqlToplam = 0;
+    try {
+      const sqlResult = await executeQuery(sqlQuery);
+      if (sqlResult && sqlResult.length > 0) {
+        sqlSiparis = sqlResult[0].siparisAdedi || 0;
+        sqlTalep = sqlResult[0].talepAdedi || 0;
+        sqlToplam = Number(sqlResult[0].toplamTutar) || 0;
+      }
+    } catch (e) {
+      console.error('Factory comparison SQL error for', ambar, e.message);
+    }
+    
+    // Statik Ocak verilerinden bu ambar için verileri al
+    let staticFiltered = staticOcakData.filter(r => r.TUR && r.TUR !== '' && normalizeAmbarName(r.AMBAR) === normalizedAmbar);
+    const seenKeys = new Set();
+    staticFiltered = staticFiltered.filter(r => {
+      const key = `${r.SIPARIS_NO || ''}|${r.SIPARIS_MALZEME || ''}|${r.MIKTAR || ''}|${r.BIRIM_FIYAT || ''}`;
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    });
+    
+    const staticSiparisSet = new Set(staticFiltered.map(r => r.SIPARIS_NO).filter(Boolean));
+    const staticTalepSet = new Set(staticFiltered.map(r => r.TALEP_NO).filter(Boolean));
+    const staticToplam = staticFiltered.reduce((sum, r) => sum + (Number(r.TOPLAM) || 0), 0);
+    
+    // Teslim durumu - statik verilerden
+    const siparisDeliveryStatus = new Map();
+    for (const r of staticFiltered) {
+      if (!r.SIPARIS_NO) continue;
+      const hasDelivery = r.FATURAYI_KAYDEDEN && r.FATURAYI_KAYDEDEN !== '';
+      if (!siparisDeliveryStatus.has(r.SIPARIS_NO) || hasDelivery) {
+        siparisDeliveryStatus.set(r.SIPARIS_NO, hasDelivery || siparisDeliveryStatus.get(r.SIPARIS_NO) || false);
+      }
+    }
+    
+    // SQL'den teslim durumunu çek
+    try {
+      const deliveryQuery = `
+        SELECT [${C.SIPARIS_NO}] as siparisNo, 
+               MAX(CASE WHEN [${C.FATURAYI_KAYDEDEN}] IS NOT NULL AND [${C.FATURAYI_KAYDEDEN}] <> '' THEN 1 ELSE 0 END) as teslimEdildi
+        FROM (
+          SELECT *, ROW_NUMBER() OVER (
+            PARTITION BY [${C.SIPARIS_NO}], [${C.SIPARIS_MALZEME}], [${C.MIKTAR}], [${C.BIRIM_FIYAT}]
+            ORDER BY (SELECT NULL)
+          ) as _rn
+          FROM YLZ_TALEP_SIPARIS
+          WHERE ${defaultDateClause} AND ${turClause} AND ${ambarClause}
+        ) dd WHERE dd._rn = 1
+        GROUP BY [${C.SIPARIS_NO}]
+      `;
+      const deliveryResult = await executeQuery(deliveryQuery);
+      for (const row of deliveryResult) {
+        if (row.siparisNo) {
+          siparisDeliveryStatus.set(row.siparisNo, row.teslimEdildi === 1 || siparisDeliveryStatus.get(row.siparisNo) || false);
+        }
+      }
+    } catch (e) {
+      console.error('Factory delivery SQL error for', ambar, e.message);
+    }
+    
+    let teslimEdilen = 0, bekleyen = 0;
+    for (const dv of siparisDeliveryStatus.values()) {
+      if (dv) teslimEdilen++;
+      else bekleyen++;
+    }
+    
+    const totalSiparis = staticSiparisSet.size + sqlSiparis;
+    const totalTalep = staticTalepSet.size + sqlTalep;
+    const totalToplam = staticToplam + sqlToplam;
+    
+    comparisonData[ambar] = {
+      siparisAdedi: totalSiparis,
+      talepAdedi: totalTalep,
+      toplamTutar: totalToplam,
+      teslimEdilen: teslimEdilen,
+      bekleyen: bekleyen,
+      teslimOrani: totalSiparis > 0 ? Math.round((teslimEdilen / totalSiparis) * 100) : 0
+    };
+  }
+
+  return comparisonData;
+}
+
+module.exports = { executeQuery, getAllData, getDashboardStats, getIsyeriList, getAmbarList, getColumnMapping, getFactoryComparisonData };

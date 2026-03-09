@@ -1,64 +1,48 @@
-import React from 'react';
+﻿import React, { useState } from 'react';
 import { SwitchableChart, formatNumber, formatCurrency } from '../components/SwitchableChart';
-import {
-  ShoppingCartOutlined,
-  CalendarOutlined,
-  UserSwitchOutlined,
-  ClockCircleOutlined,
-} from '@ant-design/icons';
+import CompareSwitch from '../components/CompareSwitch';
+import ComparisonChart from '../components/ComparisonChart';
+import { ShoppingCartOutlined, CalendarOutlined, UserSwitchOutlined, ClockCircleOutlined } from '@ant-design/icons';
 
-const SiparisAnaliz = ({ data, fabrikaKarsilastirma = false, onChartClick }) => {
+const TOP_N = 10;
+
+const ShowAllBtn = ({ show, onToggle, total }) => (
+  <div style={{ textAlign: 'center', marginTop: -4, marginBottom: 16 }}>
+    <button
+      onClick={onToggle}
+      style={{
+        background: 'none', border: '1px solid #e2e8f0', borderRadius: 8,
+        padding: '6px 18px', cursor: 'pointer', fontSize: 12,
+        color: '#3b82f6', fontWeight: 600, transition: 'all 0.15s ease',
+      }}
+    >
+      {show ? `İlk ${TOP_N}'u Göster` : `Tümünü Gör (${total})`}
+    </button>
+  </div>
+);
+
+const SiparisAnaliz = ({ data, comparisonData = {}, selectedAmbar = 'all' }) => {
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [showAllDurum, setShowAllDurum] = useState(false);
+
   if (!data) return null;
+  const { monthlyTrend, durum, summary, teslimatSuresi } = data;
 
-  const { monthlyTrend, onaylayan, durum, summary, teslimatSuresi, ambar } = data;
-
-  // Aylik siparis trendi - siparisAdedi veya kayitAdedi kullan
   const trendData = (monthlyTrend || []).slice(0, 12).reverse().map(item => ({
     name: item.ay,
     value: item.siparisAdedi || item.kayitAdedi || 0,
   }));
 
-  // Aylik tutar trendi
   const tutarTrendData = (monthlyTrend || []).slice(0, 12).reverse().map(item => ({
     name: item.ay,
     value: item.toplamTutar || 0,
   }));
 
-  // Onaylayan kisilere gore - siparisAdedi veya talepAdedi kullan
-  const onaylayanData = (onaylayan || []).map(item => ({
-    name: item.onaylayan?.substring(0, 15) || 'Belirsiz',
-    value: item.siparisAdedi || item.talepAdedi || item.kayitAdedi || 0,
-  }));
-
-  // Onaylayan kisilere gore tutar
-  const onaylayanTutarData = (onaylayan || []).map(item => ({
-    name: item.onaylayan?.substring(0, 15) || 'Belirsiz',
-    value: item.toplamTutar || 0,
-  }));
-
-  // Durum dagilimi - siparisAdedi veya kayitAdedi kullan
-  const durumData = (durum || []).map(item => ({
+  const durumFull = (durum || []).map(item => ({
     name: item.durum,
     value: item.siparisAdedi || item.kayitAdedi || 0,
   }));
-
-  // Fabrikaya gore siparis adedi
-  const fabrikaAdetData = (ambar || [])
-    .slice()
-    .sort((a, b) => (b.siparisAdedi || 0) - (a.siparisAdedi || 0))
-    .map(item => ({
-      name: item.ambar || 'Belirsiz',
-      value: item.siparisAdedi || item.kayitAdedi || 0,
-    }));
-
-  // Fabrikaya gore siparis tutari
-  const fabrikaTutarData = (ambar || [])
-    .slice()
-    .sort((a, b) => (b.toplamTutar || 0) - (a.toplamTutar || 0))
-    .map(item => ({
-      name: item.ambar || 'Belirsiz',
-      value: item.toplamTutar || 0,
-    }));
+  const durumData = showAllDurum ? durumFull : durumFull.slice(0, TOP_N);
 
   return (
     <div>
@@ -67,101 +51,43 @@ const SiparisAnaliz = ({ data, fabrikaKarsilastirma = false, onChartClick }) => 
         <p>Sipariş süreçlerinin detaylı analizi ve performans takibi</p>
       </div>
 
-      {/* KPI Cards */}
       <div className="kpi-grid">
         <div className="kpi-card">
-          <div className="kpi-icon blue">
-            <ShoppingCartOutlined />
-          </div>
+          <div className="kpi-icon blue"><ShoppingCartOutlined /></div>
           <div className="kpi-value">{formatNumber(summary?.totalSiparis || 0)}</div>
           <div className="kpi-label">Toplam Sipariş</div>
         </div>
-
         <div className="kpi-card">
-          <div className="kpi-icon green">
-            <CalendarOutlined />
-          </div>
+          <div className="kpi-icon green"><CalendarOutlined /></div>
           <div className="kpi-value">{trendData.length}</div>
           <div className="kpi-label">Aktif Ay Sayısı</div>
         </div>
-
         <div className="kpi-card">
-          <div className="kpi-icon orange">
-            <UserSwitchOutlined />
-          </div>
-          <div className="kpi-value">{onaylayan?.length || 0}</div>
-          <div className="kpi-label">Onaylayan Kişi Sayısı</div>
+          <div className="kpi-icon orange"><UserSwitchOutlined /></div>
+          <div className="kpi-value">{formatNumber(summary?.totalSiparis || 0)}</div>
+          <div className="kpi-label">Toplam Sipariş</div>
         </div>
-
         <div className="kpi-card">
-          <div className="kpi-icon purple">
-            <ClockCircleOutlined />
-          </div>
+          <div className="kpi-icon purple"><ClockCircleOutlined /></div>
           <div className="kpi-value">{teslimatSuresi?.ortalamaTeslimatSuresi || 0} Gün</div>
           <div className="kpi-label">Ort. Teslimat Süresi</div>
         </div>
       </div>
 
-      {/* Charts */}
+      <div style={{ padding: '0 32px 8px' }}>
+        <CompareSwitch
+          isVisible={selectedAmbar === 'all'}
+          isCompareMode={isCompareMode}
+          onToggle={() => setIsCompareMode(!isCompareMode)}
+        />
+      </div>
+
       <div className="charts-grid">
-        {fabrikaKarsilastirma ? (
+        {isCompareMode && selectedAmbar === 'all' ? (
           <>
-            <SwitchableChart
-              title="Fabrikalara Göre Sipariş Adedi"
-              data={fabrikaAdetData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              height={320}
-              onClick={onChartClick}
-              filterField="AMBAR"
-            />
-
-            <SwitchableChart
-              title="Fabrikalara Göre Sipariş Tutarı"
-              data={fabrikaTutarData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              valueFormatter={formatCurrency}
-              height={320}
-              onClick={onChartClick}
-              filterField="AMBAR"
-            />
-
-            <SwitchableChart
-              title="Aylık Sipariş Adedi Trendi"
-              data={trendData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              height={320}
-              onClick={onChartClick}
-              filterField="ay"
-            />
-
-            <SwitchableChart
-              title="Aylık Sipariş Tutarı"
-              data={tutarTrendData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              valueFormatter={formatCurrency}
-              height={320}
-              onClick={onChartClick}
-              filterField="ay"
-            />
-
-            <SwitchableChart
-              title="Sipariş Durumu Dağılımı"
-              data={durumData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              height={320}
-              onClick={onChartClick}
-              filterField="TESLIM_DURUMU"
-            />
+            <ComparisonChart title="Fabrika Bazında Sipariş Adedi" comparisonData={comparisonData} metric="siparisAdedi" height={320} />
+            <ComparisonChart title="Fabrika Bazında Sipariş Tutarı" comparisonData={comparisonData} metric="toplamTutar" valueFormatter={formatCurrency} height={320} />
+            <ComparisonChart title="Fabrika Bazında Teslim Oranı (%)" comparisonData={comparisonData} metric="teslimOrani" valueFormatter={(v) => `${v}%`} height={320} />
           </>
         ) : (
           <>
@@ -172,10 +98,8 @@ const SiparisAnaliz = ({ data, fabrikaKarsilastirma = false, onChartClick }) => 
               nameKey="name"
               defaultType="bar"
               height={320}
-              onClick={onChartClick}
-              filterField="ay"
+              sort={false}
             />
-
             <SwitchableChart
               title="Aylık Sipariş Tutarı"
               data={tutarTrendData}
@@ -184,22 +108,22 @@ const SiparisAnaliz = ({ data, fabrikaKarsilastirma = false, onChartClick }) => 
               defaultType="bar"
               valueFormatter={formatCurrency}
               height={320}
-              onClick={onChartClick}
-              filterField="ay"
+              sort={false}
+              showPct={true}
             />
-
-            
-
-            <SwitchableChart
-              title="Sipariş Durumu Dağılımı"
-              data={durumData}
-              dataKey="value"
-              nameKey="name"
-              defaultType="bar"
-              height={320}
-              onClick={onChartClick}
-              filterField="TESLIM_DURUMU"
-            />
+            <div style={showAllDurum ? { gridColumn: 'span 2' } : {}}>
+              <SwitchableChart
+                title="Sipariş Durumu Dağılımı"
+                data={durumData}
+                dataKey="value"
+                nameKey="name"
+                defaultType="bar"
+                height={320}
+                sort={false}
+                expanded={showAllDurum}
+              />
+              {durumFull.length > TOP_N && <ShowAllBtn show={showAllDurum} onToggle={() => setShowAllDurum(v => !v)} total={durumFull.length} />}
+            </div>
           </>
         )}
       </div>

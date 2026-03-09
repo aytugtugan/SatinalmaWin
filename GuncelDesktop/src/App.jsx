@@ -8,54 +8,8 @@ import SiparisAnaliz from './pages/SiparisAnaliz';
 import TedarikciAnaliz from './pages/TedarikciAnaliz';
 import FinansalAnaliz from './pages/FinansalAnaliz';
 import DetayliRapor from './pages/DetayliRapor';
-import { ShopOutlined, ReloadOutlined, MinusOutlined, BorderOutlined, CloseOutlined, BlockOutlined } from '@ant-design/icons';
+import { ShopOutlined, ReloadOutlined, MinusOutlined, FullscreenOutlined, FullscreenExitOutlined, CloseOutlined } from '@ant-design/icons';
 import './styles.css';
-
-// Custom Title Bar Component
-const TitleBar = () => {
-  const [isMaximized, setIsMaximized] = useState(true);
-
-  useEffect(() => {
-    const checkMaximized = async () => {
-      const maximized = await window.api.windowIsMaximized();
-      setIsMaximized(maximized);
-    };
-    checkMaximized();
-  }, []);
-
-  const handleMinimize = () => {
-    window.api.windowMinimize();
-  };
-
-  const handleMaximize = async () => {
-    await window.api.windowMaximize();
-    const maximized = await window.api.windowIsMaximized();
-    setIsMaximized(maximized);
-  };
-
-  const handleClose = () => {
-    window.api.windowClose();
-  };
-
-  return (
-    <div className="custom-title-bar">
-      <div className="title-bar-drag">
-        <span className="title-bar-text">Satın Alma Rapor Sistemi</span>
-      </div>
-      <div className="title-bar-controls">
-        <button className="title-bar-btn minimize-btn" onClick={handleMinimize} title="Küçült">
-          <MinusOutlined />
-        </button>
-        <button className="title-bar-btn maximize-btn" onClick={handleMaximize} title={isMaximized ? "Geri Yükle" : "Büyüt"}>
-          {isMaximized ? <BlockOutlined /> : <BorderOutlined />}
-        </button>
-        <button className="title-bar-btn close-btn" onClick={handleClose} title="Kapat">
-          <CloseOutlined />
-        </button>
-      </div>
-    </div>
-  );
-};
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -66,21 +20,37 @@ const App = () => {
   const [error, setError] = useState(null);
   const [ambarList, setAmbarList] = useState([]);
   const [selectedAmbar, setSelectedAmbar] = useState('all');
-  const [fabrikaKarsilastirma, setFabrikaKarsilastirma] = useState(false);
-  
-  // Detaylı rapor filtreleme state'i
-  const [detayFilter, setDetayFilter] = useState(null);
+  const [comparisonData, setComparisonData] = useState({});
+  const [isFullscreen, setIsFullscreen] = useState(true);
+  const [updateStatus, setUpdateStatus] = useState(null); // null | 'downloading' | 'ready'
+  const [updateVersion, setUpdateVersion] = useState('');
+  const [downloadPercent, setDownloadPercent] = useState(0);
 
-  // Grafik tıklama handler'ı - detaylı rapora yönlendir ve filtrele
-  const handleChartClick = (name, value, originalData, filterField) => {
-    console.log('Chart clicked:', { name, value, originalData, filterField });
-    setDetayFilter({ field: filterField, value: name, originalValue: value });
-    setCurrentPage('detay');
-  };
+  // Güncelleme event listener
+  useEffect(() => {
+    if (window.api?.onUpdateAvailable) {
+      window.api.onUpdateAvailable((info) => {
+        setUpdateStatus('downloading');
+        setUpdateVersion(info?.version || '');
+      });
+    }
+    if (window.api?.onDownloadProgress) {
+      window.api.onDownloadProgress((progress) => {
+        setDownloadPercent(Math.round(progress?.percent || 0));
+      });
+    }
+    if (window.api?.onUpdateDownloaded) {
+      window.api.onUpdateDownloaded((info) => {
+        setUpdateStatus('ready');
+        setUpdateVersion(info?.version || '');
+      });
+    }
+  }, []);
 
-  // Filtreyi temizle
-  const clearDetayFilter = () => {
-    setDetayFilter(null);
+  const handleRestartForUpdate = () => {
+    if (window.api?.restartForUpdate) {
+      window.api.restartForUpdate();
+    }
   };
 
   // Ambar listesini yukle
@@ -135,11 +105,24 @@ const App = () => {
     }
   };
 
+  // Fabrika karşılaştırma verilerini yukle
+  const loadComparisonData = async () => {
+    try {
+      const result = await window.api.getFactoryComparison();
+      if (result.success) {
+        setComparisonData(result.data || {});
+      }
+    } catch (err) {
+      console.error('Comparison data error:', err);
+    }
+  };
+
   // Ilk yukleme
   useEffect(() => {
     loadAmbarList();
     loadDashboardData(selectedAmbar);
     loadAllData();
+    loadComparisonData();
   }, []);
 
   // Ambar degistiginde verileri yeniden yukle
@@ -150,32 +133,54 @@ const App = () => {
   const handleRefresh = () => {
     loadDashboardData(selectedAmbar);
     loadAllData();
+    loadComparisonData();
+    // Güncelleme kontrolü
+    if (window.api?.checkForUpdates) {
+      window.api.checkForUpdates().then(result => {
+        console.log('Güncelleme kontrol sonucu:', result);
+      }).catch(err => {
+        console.error('Güncelleme kontrol hatası:', err);
+      });
+    }
+  };
+
+  const handleMinimize = () => {
+    if (window.api?.windowMinimize) window.api.windowMinimize();
+  };
+
+  const handleFullscreenToggle = async () => {
+    if (window.api?.windowMaximize) {
+      await window.api.windowMaximize();
+      setIsFullscreen(prev => !prev);
+    }
+  };
+
+  const handleClose = () => {
+    if (window.api?.windowClose) window.api.windowClose();
   };
 
   const renderPage = () => {
-    const isFabrikaMode = selectedAmbar === 'all' && fabrikaKarsilastirma;
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard data={dashboardData} columns={columnMapping} fabrikaKarsilastirma={isFabrikaMode} onChartClick={handleChartClick} />;
+        return <Dashboard data={dashboardData} columns={columnMapping} comparisonData={comparisonData} selectedAmbar={selectedAmbar} />;
       case 'talep':
-        return <TalepAnaliz data={dashboardData} columns={columnMapping} fabrikaKarsilastirma={isFabrikaMode} onChartClick={handleChartClick} />;
+        return <TalepAnaliz data={dashboardData} columns={columnMapping} comparisonData={comparisonData} selectedAmbar={selectedAmbar} />;
       case 'siparis':
-        return <SiparisAnaliz data={dashboardData} columns={columnMapping} fabrikaKarsilastirma={isFabrikaMode} onChartClick={handleChartClick} />;
+        return <SiparisAnaliz data={dashboardData} columns={columnMapping} comparisonData={comparisonData} selectedAmbar={selectedAmbar} />;
       case 'tedarikci':
-        return <TedarikciAnaliz data={dashboardData} columns={columnMapping} fabrikaKarsilastirma={isFabrikaMode} onChartClick={handleChartClick} />;
+        return <TedarikciAnaliz data={dashboardData} columns={columnMapping} comparisonData={comparisonData} selectedAmbar={selectedAmbar} />;
       case 'finansal':
-        return <FinansalAnaliz data={dashboardData} columns={columnMapping} fabrikaKarsilastirma={isFabrikaMode} onChartClick={handleChartClick} />;
+        return <FinansalAnaliz data={dashboardData} columns={columnMapping} comparisonData={comparisonData} selectedAmbar={selectedAmbar} />;
       case 'detay':
-        return <DetayliRapor data={allData} selectedAmbar={selectedAmbar} columns={columnMapping} externalFilter={detayFilter} onClearFilter={clearDetayFilter} />;
+        return <DetayliRapor data={allData} selectedAmbar={selectedAmbar} columns={columnMapping} />;
       default:
-        return <Dashboard data={dashboardData} columns={columnMapping} fabrikaKarsilastirma={isFabrikaMode} onChartClick={handleChartClick} />;
+        return <Dashboard data={dashboardData} columns={columnMapping} comparisonData={comparisonData} selectedAmbar={selectedAmbar} />;
     }
   };
 
   if (loading && !dashboardData) {
     return (
       <div className="app-wrapper">
-        <TitleBar />
         <div className="app-container">
           <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
           <div className="loading-container">
@@ -190,7 +195,6 @@ const App = () => {
   if (error && !dashboardData) {
     return (
       <div className="app-wrapper">
-        <TitleBar />
         <div className="app-container">
           <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
           <div className="error-container">
@@ -208,7 +212,6 @@ const App = () => {
   return (
     <ConfigProvider locale={trTR}>
       <div className="app-wrapper">
-        <TitleBar />
         <div className="app-container">
           <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
           <main className="main-content">
@@ -219,41 +222,54 @@ const App = () => {
                 <span className="filter-label">Fabrika:</span>
                 <Select
                   value={selectedAmbar}
-                  onChange={(val) => {
-                    setSelectedAmbar(val);
-                    if (val !== 'all') setFabrikaKarsilastirma(false);
-                  }}
+                  onChange={setSelectedAmbar}
                   style={{ width: 220 }}
                   size="middle"
                     options={[
                     { value: 'all', label: 'Tüm Fabrikalar' },
                     ...ambarList.map(item => ({
                       value: item.ambar,
-                      label: item.ambar
+                      label: item.displayName || item.ambar
                     }))
                   ]}
                 />
-                {selectedAmbar === 'all' && (
-                  <div className="fabrika-karsilastirma-toggle">
-                    <span className="toggle-label">Fabrika Karşılaştırması:</span>
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={fabrikaKarsilastirma}
-                        onChange={(e) => setFabrikaKarsilastirma(e.target.checked)}
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
-                  </div>
-                )}
               </div>
               <div className="filter-right">
                 <button className="refresh-btn" onClick={handleRefresh} disabled={loading}>
                   <ReloadOutlined spin={loading} />
                   <span>Yenile</span>
                 </button>
+
+                <div className="win-controls">
+                  <button className="win-btn win-minimize" onClick={handleMinimize} title="Küçült">
+                    <MinusOutlined />
+                  </button>
+                  <button className="win-btn win-maximize" onClick={handleFullscreenToggle} title={isFullscreen ? 'Tam Ekrandan Çık' : 'Tam Ekran'}>
+                    {isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+                  </button>
+                  <button className="win-btn win-close" onClick={handleClose} title="Kapat">
+                    <CloseOutlined />
+                  </button>
+                </div>
               </div>
             </div>
+            {/* Güncelleme bildirimi */}
+            {updateStatus === 'downloading' && (
+              <div className="update-banner downloading">
+                <span>Güncelleme indiriliyor... %{downloadPercent}</span>
+                <div className="update-progress-bar">
+                  <div className="update-progress-fill" style={{ width: `${downloadPercent}%` }}></div>
+                </div>
+              </div>
+            )}
+            {updateStatus === 'ready' && (
+              <div className="update-banner ready">
+                <span>Yeni sürüm (v{updateVersion}) hazır!</span>
+                <button className="update-restart-btn" onClick={handleRestartForUpdate}>
+                  Şimdi Güncelle
+                </button>
+              </div>
+            )}
             {renderPage()}
           </main>
         </div>
