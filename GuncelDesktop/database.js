@@ -31,16 +31,17 @@ const DATE_FILTER = '2026-02-01';
 let staticOcakData = [];
 try {
   // Veri dosyasını birden fazla konumda ara
-  let staticDataPath = path.join(__dirname, 'ocak_2026_data.json');
+  // 1) extraResources yolu (kurulu uygulama): resources/ocak_2026_data.json
+  let staticDataPath = path.join(process.resourcesPath || '', 'ocak_2026_data.json');
   
-  // __dirname'de bulamazsa, process.cwd()'de ara
+  // 2) Uygulama dizini (geliştirme ortamı)
   if (!fs.existsSync(staticDataPath)) {
-    staticDataPath = path.join(process.cwd(), 'ocak_2026_data.json');
+    staticDataPath = path.join(__dirname, 'ocak_2026_data.json');
   }
   
-  // Hala bulamazsa, uygulamanın çalıştığı dizinde ara
+  // 3) Çalışma dizini
   if (!fs.existsSync(staticDataPath)) {
-    staticDataPath = path.join(process.cwd(), '..', 'Satin Alma Rapor', 'ocak_2026_data.json');
+    staticDataPath = path.join(process.cwd(), 'ocak_2026_data.json');
   }
   
   if (fs.existsSync(staticDataPath)) {
