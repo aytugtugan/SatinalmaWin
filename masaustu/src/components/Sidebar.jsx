@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AppstoreOutlined,
   FileSearchOutlined,
@@ -6,6 +6,9 @@ import {
   TeamOutlined,
   FundOutlined,
   DatabaseOutlined,
+  DownloadOutlined,
+  CheckOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 
 let logoImgInline;
@@ -24,7 +27,21 @@ const menuItems = [
   { key: 'detay', icon: <DatabaseOutlined />, label: 'Detaylı Rapor' },
 ];
 
-const Sidebar = ({ currentPage, setCurrentPage }) => {
+const Sidebar = ({ currentPage, setCurrentPage, updateStatus, downloadPercent, onCheckUpdate, onRestartUpdate }) => {
+  const [isChecking, setIsChecking] = useState(false);
+
+  const handleCheckClick = async () => {
+    setIsChecking(true);
+    if (onCheckUpdate) {
+      try {
+        await onCheckUpdate();
+      } catch (err) {
+        console.error('Güncelleme kontrol hatası:', err);
+      }
+    }
+    setIsChecking(false);
+  };
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -49,8 +66,36 @@ const Sidebar = ({ currentPage, setCurrentPage }) => {
           </div>
         ))}
       </nav>
+      <div className="sidebar-update-section">
+        {updateStatus === 'ready' ? (
+          <div className="update-ready">
+            <div className="update-label">✓ Güncelleme Hazır!</div>
+            <button className="update-action-btn" onClick={onRestartUpdate} title="Uygulamayı yeniden başlat">
+              Şimdi Güncelle
+            </button>
+          </div>
+        ) : updateStatus === 'downloading' ? (
+          <div className="update-downloading">
+            <LoadingOutlined className="update-spinner" />
+            <div className="update-label">İndiriliyor... %{downloadPercent}</div>
+            <div className="update-progress-bar">
+              <div className="update-progress-fill" style={{ width: `${downloadPercent}%` }}></div>
+            </div>
+          </div>
+        ) : (
+          <button 
+            className="update-check-btn" 
+            onClick={handleCheckClick} 
+            disabled={isChecking}
+            title="Güncellemeleri kontrol et"
+          >
+            {isChecking ? <LoadingOutlined /> : <DownloadOutlined />}
+            <span>{isChecking ? 'Kontrol ediliyor...' : 'Güncellemeleri\nKontrol Et'}</span>
+          </button>
+        )}
+      </div>
       <div className="sidebar-footer">
-        v1.0.6 — Enterprise
+        v1.0.7 — Enterprise
       </div>
     </aside>
   );

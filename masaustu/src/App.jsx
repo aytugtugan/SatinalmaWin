@@ -53,6 +53,17 @@ const App = () => {
     }
   };
 
+  const handleCheckUpdate = async () => {
+    if (window.api?.checkForUpdates) {
+      try {
+        const result = await window.api.checkForUpdates();
+        console.log('Güncelleme kontrol sonucu:', result);
+      } catch (err) {
+        console.error('Güncelleme kontrol hatası:', err);
+      }
+    }
+  };
+
   // Ambar listesini yukle
   const loadAmbarList = async () => {
     try {
@@ -182,7 +193,14 @@ const App = () => {
     return (
       <div className="app-wrapper">
         <div className="app-container">
-          <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+          <Sidebar 
+            currentPage={currentPage} 
+            setCurrentPage={setCurrentPage}
+            updateStatus={updateStatus}
+            downloadPercent={downloadPercent}
+            onCheckUpdate={handleCheckUpdate}
+            onRestartUpdate={handleRestartForUpdate}
+          />
           <div className="loading-container">
             <div className="loading-spinner"></div>
             <div className="loading-text">Veriler yükleniyor...</div>
@@ -196,7 +214,14 @@ const App = () => {
     return (
       <div className="app-wrapper">
         <div className="app-container">
-          <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+          <Sidebar 
+            currentPage={currentPage} 
+            setCurrentPage={setCurrentPage}
+            updateStatus={updateStatus}
+            downloadPercent={downloadPercent}
+            onCheckUpdate={handleCheckUpdate}
+            onRestartUpdate={handleRestartForUpdate}
+          />
           <div className="error-container">
             <div className="error-icon">!</div>
             <div className="error-message">{error}</div>
@@ -213,7 +238,14 @@ const App = () => {
     <ConfigProvider locale={trTR}>
       <div className="app-wrapper">
         <div className="app-container">
-          <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+          <Sidebar 
+            currentPage={currentPage} 
+            setCurrentPage={setCurrentPage}
+            updateStatus={updateStatus}
+            downloadPercent={downloadPercent}
+            onCheckUpdate={handleCheckUpdate}
+            onRestartUpdate={handleRestartForUpdate}
+          />
           <main className="main-content">
             {/* Global Filter Bar */}
             <div className="global-filter-bar">
