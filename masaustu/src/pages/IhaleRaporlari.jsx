@@ -35,33 +35,33 @@ const fmtShort = (val) => {
 const RADIAN = Math.PI / 180;
 const renderCombinedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value, name }) => {
   if (percent < 0.03) return null;
-  const ri = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const ri = outerRadius * 0.6;
   const xi = cx + ri * Math.cos(-midAngle * RADIAN);
   const yi = cy + ri * Math.sin(-midAngle * RADIAN);
   const ro1 = outerRadius + 8;
-  const ro2 = outerRadius + 28;
+  const ro2 = outerRadius + 30;
   const x1 = cx + ro1 * Math.cos(-midAngle * RADIAN);
   const y1 = cy + ro1 * Math.sin(-midAngle * RADIAN);
   const x2 = cx + ro2 * Math.cos(-midAngle * RADIAN);
   const y2 = cy + ro2 * Math.sin(-midAngle * RADIAN);
   const anchor = x2 > cx ? 'start' : 'end';
-  const shortName = name ? (name.length > 9 ? name.substring(0, 9) + '..' : name) : '';
+  const shortName = name ? (name.length > 10 ? name.substring(0, 10) + '..' : name) : '';
   return (
     <g>
       {percent >= 0.10 ? (
         <g>
-          <text x={xi} y={yi - 7} fill="#fff" textAnchor="middle" dominantBaseline="central"
-            style={{ fontSize: 9, fontWeight: 600 }}>
+          <text x={xi} y={yi - 8} fill="#fff" textAnchor="middle" dominantBaseline="central"
+            style={{ fontSize: 10, fontWeight: 600 }}>
             {shortName}
           </text>
-          <text x={xi} y={yi + 7} fill="#fff" textAnchor="middle" dominantBaseline="central"
-            style={{ fontSize: 10, fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>
+          <text x={xi} y={yi + 8} fill="#fff" textAnchor="middle" dominantBaseline="central"
+            style={{ fontSize: 11, fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
             {fmtShort(value)}
           </text>
         </g>
-      ) : percent > 0.06 ? (
+      ) : percent > 0.05 ? (
         <text x={xi} y={yi} fill="#fff" textAnchor="middle" dominantBaseline="central"
-          style={{ fontSize: 10, fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>
+          style={{ fontSize: 11, fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
           {fmtShort(value)}
         </text>
       ) : null}
@@ -188,21 +188,15 @@ const RenderChart = ({ data, mode, dataKey, nameKey, height = 280 }) => {
     return (
       <>
         <div style={{ position: 'relative' }}>
-          <ResponsiveContainer width="100%" height={320}>
-            <PieChart margin={{ top: 20, right: 60, bottom: 20, left: 60 }}>
+          <ResponsiveContainer width="100%" height={340}>
+            <PieChart margin={{ top: 20, right: 70, bottom: 20, left: 70 }}>
               <Pie data={pieData} dataKey={dataKey} nameKey={nameKey}
                 cx="50%" cy="50%"
-                outerRadius={80} innerRadius={50}
-                paddingAngle={3} startAngle={90} endAngle={-270}
+                outerRadius={110}
+                paddingAngle={2} startAngle={90} endAngle={-270}
                 labelLine={false} label={renderCombinedLabel}
               >
                 {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="#fff" strokeWidth={2} />)}
-                <Label content={({ viewBox: { cx, cy } }) => (
-                  <g>
-                    <text x={cx} y={cy - 8} textAnchor="middle" fill="#1e293b" fontSize={20} fontWeight={800}>{pieData.length}</text>
-                    <text x={cx} y={cy + 10} textAnchor="middle" fill="#94a3b8" fontSize={11}>grup</text>
-                  </g>
-                )} position="center" />
               </Pie>
               <Tooltip content={<ChartTooltip formatter={fmtCurrency} />} />
             </PieChart>
