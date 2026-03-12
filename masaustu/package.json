@@ -1,6 +1,6 @@
 {
   "name": "satinalma-rapor",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "Satın Alma Rapor Uygulaması",
   "main": "main.js",
   "scripts": {
@@ -31,8 +31,10 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Satin Alma Rapor",
       "installerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
-      "runAfterFinish": true
+      "runAfterFinish": true,
+      "include": "installer.nsh"
     },
     "publish": [
       {

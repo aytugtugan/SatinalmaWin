@@ -107,7 +107,7 @@ const Sidebar = ({ currentPage, setCurrentPage, updateStatus, downloadPercent, o
         )}
       </div>
       <div className="sidebar-footer">
-        v1.0.17 — Enterprise
+        v1.0.18 — Enterprise
       </div>
     </aside>
   );

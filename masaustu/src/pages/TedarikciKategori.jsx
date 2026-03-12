@@ -80,7 +80,7 @@ const TedarikciKategori = () => {
     setEditingId(item.ID);
     setForm({
       TIP: item.TIP || '',
-      MALZEME_VEYA_HIZMET_GRUBU: item.MALZEME_HIZMET_GRUBU || '',
+      MALZEME_VEYA_HIZMET_GRUBU: item.MALZEME_VEYA_HIZMET_GRUBU || item.MALZEME_HIZMET_GRUBU || '',
       TEDARIKCI_CARI_KODU: item.TEDARIKCI_CARI_KODU || '',
       TEDARIKCI_UNVANI: item.TEDARIKCI_UNVANI || '',
       FIRMA_YETKILISI: item.FIRMA_YETKILISI || '',
@@ -200,14 +200,18 @@ const TedarikciKategori = () => {
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: 11, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>CARİ KODU</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: 11, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>TEDARİKÇİ UNVANI</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: 11, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>YETKİLİ</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: 11, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>E-POSTA</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: 11, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>TELEFON</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: 11, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>AÇIKLAMA</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: 11, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>OLUŞTURMA TARİHİ</th>
                 <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#64748b', fontSize: 11, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>İŞLEMLER</th>
               </tr>
             </thead>
             <tbody>
               {loading && !data.length ? (
-                <tr><td colSpan={7} style={{ padding: 60, textAlign: 'center', color: '#94a3b8' }}><ReloadOutlined spin style={{ fontSize: 24 }} /><br />Yükleniyor...</td></tr>
+                <tr><td colSpan={11} style={{ padding: 60, textAlign: 'center', color: '#94a3b8' }}><ReloadOutlined spin style={{ fontSize: 24 }} /><br />Yükleniyor...</td></tr>
               ) : data.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 60, textAlign: 'center', color: '#94a3b8' }}>Kayıt bulunamadı</td></tr>
+                <tr><td colSpan={11} style={{ padding: 60, textAlign: 'center', color: '#94a3b8' }}>Kayıt bulunamadı</td></tr>
               ) : data.map((item) => (
                 <tr key={item.ID} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
                   onClick={() => setDetailItem(item)}
@@ -220,8 +224,8 @@ const TedarikciKategori = () => {
                       {tipLabel(item.TIP)}
                     </span>
                   </td>
-                  <td style={{ padding: '10px 16px', fontWeight: 500, color: '#1e293b', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.MALZEME_HIZMET_GRUBU}>
-                    {item.MALZEME_HIZMET_GRUBU || '-'}
+                  <td style={{ padding: '10px 16px', fontWeight: 500, color: '#1e293b', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.MALZEME_VEYA_HIZMET_GRUBU || item.MALZEME_HIZMET_GRUBU}>
+                    {item.MALZEME_VEYA_HIZMET_GRUBU || item.MALZEME_HIZMET_GRUBU || '-'}
                   </td>
                   <td style={{ padding: '10px 16px', color: '#64748b', whiteSpace: 'nowrap' }}>{item.TEDARIKCI_CARI_KODU || '-'}</td>
                   <td style={{ padding: '10px 16px', fontWeight: 500, color: '#1e293b', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.TEDARIKCI_UNVANI}>
@@ -229,6 +233,18 @@ const TedarikciKategori = () => {
                   </td>
                   <td style={{ padding: '10px 16px', color: '#64748b', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.FIRMA_YETKILISI}>
                     {item.FIRMA_YETKILISI || '-'}
+                  </td>
+                  <td style={{ padding: '10px 16px', color: '#64748b', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.MAIL_ADRESI}>
+                    {item.MAIL_ADRESI || '-'}
+                  </td>
+                  <td style={{ padding: '10px 16px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                    {item.TELEFON_NUMARASI || '-'}
+                  </td>
+                  <td style={{ padding: '10px 16px', color: '#64748b', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.ACIKLAMA}>
+                    {item.ACIKLAMA || '-'}
+                  </td>
+                  <td style={{ padding: '10px 16px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                    {item.OLUSTURMA_TARIHI ? new Date(item.OLUSTURMA_TARIHI).toLocaleDateString('tr-TR') : '-'}
                   </td>
                   <td style={{ padding: '10px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                     <button onClick={(e) => { e.stopPropagation(); handleEdit(item); }} title="Düzenle"
@@ -342,7 +358,7 @@ const TedarikciKategori = () => {
               {[
                 ['ID', detailItem.ID],
                 ['Tip', tipLabel(detailItem.TIP)],
-                ['Malzeme/Hizmet Grubu', detailItem.MALZEME_HIZMET_GRUBU],
+                ['Malzeme/Hizmet Grubu', detailItem.MALZEME_VEYA_HIZMET_GRUBU || detailItem.MALZEME_HIZMET_GRUBU],
                 ['Cari Kodu', detailItem.TEDARIKCI_CARI_KODU],
                 ['Tedarikçi Unvanı', detailItem.TEDARIKCI_UNVANI],
                 ['Firma Yetkilisi', detailItem.FIRMA_YETKILISI],
