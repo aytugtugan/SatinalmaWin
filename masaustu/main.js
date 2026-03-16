@@ -3,6 +3,15 @@ const { autoUpdater } = require('electron-updater');
 autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
 autoUpdater.allowPrerelease = false;
+
+// GitHub release feed URL'sini açıkça belirt
+autoUpdater.setFeedURL({
+  provider: 'github',
+  owner: 'mustafabakoglu',
+  repo: 'Satin-alma',
+  releaseType: 'release'
+});
+
 // Public repo - token gerekmez
 // Guncelleme logunu dosyaya yaz
 const log = require('electron-log');
@@ -89,9 +98,14 @@ autoUpdater.on('update-not-available', (info) => {
 });
 
 autoUpdater.on('error', (err) => {
-  console.error('Güncelleme hatası:', err);
+  console.error('Güncelleme hatası (DETAYLI):', {
+    message: err.message,
+    code: err.code,
+    stack: err.stack,
+    fullError: err
+  });
   if (mainWindow) {
-    mainWindow.webContents.send('update-error', err.message);
+    mainWindow.webContents.send('update-error', `Hata: ${err.message || err.code || 'Bilinmeyen hata'}`);
   }
 });
 
@@ -164,14 +178,24 @@ ipcMain.handle('window-is-maximized', () => {
 ipcMain.handle('check-for-updates', async () => {
   try {
     console.log('Manuel güncelleme kontrolü başlandı...');
+    console.log('autoUpdater config:', {
+      provider: 'github',
+      owner: 'mustafabakoglu',
+      repo: 'Satin-alma',
+      updateUrl: autoUpdater.updateUrl
+    });
     const result = await autoUpdater.checkForUpdates();
     console.log('Güncelleme kontrolü sonucu:', result);
     return { success: true, data: result };
   } catch (error) {
-    console.error('Güncelleme kontrol hatası:', error.message);
-    // update-error event zaten autoUpdater.on('error') tarafından gönderilir
-    // Burada da güvenlik olarak false döndür
-    return { success: false, error: error.message };
+    console.error('Güncelleme kontrol hatası (DETAYLI):', {
+      message: error.message,
+      code: error.code,
+      statusCode: error.statusCode,
+      path: error.path,
+      stack: error.stack
+    });
+    return { success: false, error: error.message || JSON.stringify(error) };
   }
 });
 
