@@ -1,6 +1,6 @@
 version: 1.0.19
 files:
-  - url: Satin.Alma.Rapor.Setup.1.0.19.exe
+  - url: https://github.com/mustafabakoglu/Satin-alma/releases/download/v1.0.19/Satin.Alma.Rapor.Setup.1.0.19.exe
     sha512: n0LmuiLsqwDlY+RxmXgRjxOfUKy0A15+z4hxG7y6ovaOFN860EP9nmJXvnWFKMzmBy65LqJG4ySNePA4Y8NIGA==
     size: 105748631
 path: Satin.Alma.Rapor.Setup.1.0.19.exe
