@@ -34,6 +34,35 @@ function parseDovizliTutar(dovizStr) {
   return { paraBirimi: 'TL', dovizTutar: numVal };
 }
 
+// Güvenli birim fiyat / tutar parse
+function parseBirimTutar(val) {
+  if (val === null || val === undefined || val === '') return null;
+  // number already
+  if (typeof val === 'number' && !isNaN(val)) return val;
+  const s = String(val).trim();
+  // currency-like (uses parseDovizliTutar to extract number)
+  const c = parseDovizliTutar(s);
+  if (c.dovizTutar !== null) return c.dovizTutar;
+
+  // Remove non-numeric trailing/leading text (e.g., accidental month labels)
+  // Allow digits, dots and commas, minus
+  const numLike = s.match(/[-0-9.,]+/);
+  if (!numLike) return null;
+  let n = numLike[0];
+  // If contains both '.' and ',' assume '.' thousands and ',' decimal (e.g. 1.234,56)
+  if (n.indexOf('.') !== -1 && n.indexOf(',') !== -1) {
+    n = n.replace(/\./g, '').replace(/,/g, '.');
+  } else if (n.indexOf(',') !== -1 && n.indexOf('.') === -1) {
+    // Turkish format 1234,56
+    n = n.replace(/,/g, '.');
+  } else {
+    // remove thousand commas like 1,234 or 1 234
+    n = n.replace(/,/g, '');
+  }
+  const parsed = parseFloat(n);
+  return isNaN(parsed) ? null : parsed;
+}
+
 // Ambar adını normalize et
 function normalizeAmbar(ambarAciklama) {
   if (!ambarAciklama) return 'Gaziantep';
@@ -84,8 +113,14 @@ const records = excelData.map(r => {
     BIRIM: 'ADET',
     ODEME_VADESI: odemePlan,
     PARA_BIRIMI: paraBirimi,
-    BIRIM_FIYAT: r['Tutar'] || 0,
-    TOPLAM: r['Tutar'] || 0,
+    BIRIM_FIYAT: (() => {
+      const p = parseBirimTutar(r['Tutar']);
+      return p === null ? 0 : p;
+    })(),
+    TOPLAM: (() => {
+      const p = parseBirimTutar(r['Tutar']);
+      return p === null ? 0 : p;
+    })(),
     // OCAK AYI TAMAMI TESLİM EDİLDİ
     FATURAYI_KAYDEDEN: 'OCAK_TESLIM',
     FATURA_KAYDETME_TARIHI: siparisTarihi,

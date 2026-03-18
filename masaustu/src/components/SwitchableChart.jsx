@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -39,21 +39,25 @@ const COLORS = [
 const RADIAN = Math.PI / 180;
 
 // Dış etiketler için (% ve çizgi)
-const renderCombinedLabel = ({ cx, cy, midAngle, outerRadius, percent, index }) => {
+const renderCombinedLabel = (count) => ({ cx, cy, midAngle, outerRadius, percent, index, name }) => {
   if (percent <= 0) return null;
-  // Dışarıda: % etiketi ve çizgi
+  // Dışarıda: çizgi ve % etiketi; y-çakışmasını azaltmak için index bazlı küçük ofset
   const ro1 = outerRadius + 8;
-  const ro2 = outerRadius + 34;
+  const ro2 = outerRadius + 44; // biraz daha geniş çek
   const x1 = cx + ro1 * Math.cos(-midAngle * RADIAN);
   const y1 = cy + ro1 * Math.sin(-midAngle * RADIAN);
+  // daha dengeli bir y-ofset hesapla
+  const spread = Math.max(6, Math.min(18, Math.floor(160 / Math.max(6, count))));
+  const centerIndex = (count - 1) / 2;
+  const idx = index - centerIndex;
+  const yNudge = idx * spread * 0.25; // hafifçe yukarı/aşağı kaydır
   const x2 = cx + ro2 * Math.cos(-midAngle * RADIAN);
-  const yNudge = index % 2 === 0 ? -6 : 6;
   const y2 = cy + ro2 * Math.sin(-midAngle * RADIAN) + yNudge;
   const anchor = x2 > cx ? 'start' : 'end';
   return (
     <g>
       <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#94a3b8" strokeWidth={1} />
-      <text x={x2 + (anchor === 'start' ? 4 : -4)} y={y2} fill="#374151"
+      <text x={x2 + (anchor === 'start' ? 6 : -6)} y={y2} fill="#374151"
         textAnchor={anchor} dominantBaseline="central" style={{ fontSize: 11, fontWeight: 700 }}>
         {`${(percent * 100).toFixed(0)}%`}
       </text>
@@ -62,22 +66,32 @@ const renderCombinedLabel = ({ cx, cy, midAngle, outerRadius, percent, index }) 
 };
 
 // Pasta dilimi içinde % yazısı
-const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+const renderPieLabelInner = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, payload, value }) => {
   if (percent <= 0) return null;
   const radius = (innerRadius + outerRadius) / 2;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  
+
+  const name = payload && (payload.name || payload[kNameSymbol] || payload.label || '');
+  const rawVal = payload && (payload[dataKeySymbol] ?? payload.value ?? value);
+  const valNum = toNumber(rawVal);
+  const formatted = (typeof payloadFormatter === 'function') ? payloadFormatter(valNum) : formatNumber(valNum);
+
+  // dynamic font sizing: larger slices get larger text, small slices get smaller but still visible
+  const base = Math.max(8, Math.min(12, Math.round(10 + percent * 20)));
+  const nameSize = Math.max(8, Math.min(11, base - 1));
+  const valueSize = Math.max(9, Math.min(13, base + 1));
+
+  const shortName = name ? (String(name).length > 18 ? String(name).substring(0, 18) + '…' : name) : '';
+
   return (
-    <text 
-      x={x} 
-      y={y} 
-      fill="white" 
-      textAnchor="middle" 
-      dominantBaseline="central"
-      style={{ fontSize: 12, fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
-    >
-      {`${(percent * 100).toFixed(0)}%`}
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central">
+      <tspan x={x} dy={-8} style={{ fontSize: nameSize, fontWeight: 700, fill: 'rgba(255,255,255,0.95)', pointerEvents: 'none' }}>
+        {shortName}
+      </tspan>
+      <tspan x={x} dy={14} style={{ fontSize: valueSize, fontWeight: 800, fill: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
+        {formatted} · {(percent * 100).toFixed(0)}%
+      </tspan>
     </text>
   );
 };
@@ -232,26 +246,39 @@ const SwitchableChart = ({
   dataKey,
   nameKey,
   defaultType = 'bar',
+  mode, // optional controlled mode
+  onModeChange, // optional callback when mode changes
   valueFormatter,
   height = 280,
   showLegend = false,
   sort = true, // new prop: whether to sort descending by dataKey
   expanded = false, // when true: force horizontal bars, dynamic height, full width
   showPct = false, // when true: show % breakdown list below chart
+  hideHeader = false, // when true: don't render internal header (used when embedded in ChartCard)
+  maxPieItems, // optional: when set, limit pie rendering to top N items
 }) => {
   const [chartType, setChartType] = useState(defaultType);
-  const [isPieFullscreen, setIsPieFullscreen] = useState(defaultType === 'pie');
+  // Başlangıçta tam ekran açık olmasın; kullanıcı isteğiyle açılacak
+  const [isPieFullscreen, setIsPieFullscreen] = useState(false);
 
-  // Pasta grafiği seçildiğinde otomatik olarak tam ekran aç
+  // Pasta grafiği seçildiğinde tam ekran aç (ve dışarıya haber ver)
   const handleChartTypeChange = (type) => {
     setChartType(type);
+    if (onModeChange) onModeChange(type);
     if (type === 'pie') {
       setIsPieFullscreen(true);
+    } else {
+      // pie dışına geçince modal açık ise kapat
+      setIsPieFullscreen(false);
     }
   };
 
-  // When expanded, force horizontal and auto-calc height
-  const effectiveType = expanded ? 'horizontal' : chartType;
+  // When expanded, increase height but don't force chart type change for pies.
+  const effectiveChartType = typeof mode === 'string' ? mode : chartType;
+  let effectiveType = effectiveChartType;
+  if (expanded && effectiveChartType === 'bar') {
+    effectiveType = 'horizontal';
+  }
   const effectiveHeight = expanded ? Math.max(400, (data?.length || 0) * 34) : height;
 
   // safe sorted copy (descending by numeric value of dataKey) when sort enabled
@@ -263,6 +290,16 @@ const SwitchableChart = ({
   const sortedData = (() => {
     return allSorted;
   })();
+
+  // Auto-expand pie when many slices so inner labels can fit
+  useEffect(() => {
+    const threshold = 12;
+    // Eğer çok sayıda dilim varsa otomatik olarak tam ekran aç;
+    // manuel kullanıcı eylemini (tek tıklama) burada kapatmayalım.
+    if ((chartType === 'pie' || effectiveType === 'pie') && (sortedData?.length || 0) > threshold) {
+      setIsPieFullscreen(true);
+    }
+  }, [sortedData?.length, chartType, effectiveType]);
 
   const renderChart = () => {
     if (!sortedData || sortedData.length === 0) {
@@ -285,25 +322,81 @@ const SwitchableChart = ({
 
     const formatter = valueFormatter || formatNumber;
 
+    // İç etiket: dilim içinde isim + miktar + % gösterir
+    const renderPieLabelInner = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, payload, value }) => {
+      if (percent <= 0) return null;
+
+      const name = payload && (payload[nameKey] || payload.name || '');
+      const rawVal = payload && (payload[dataKey] ?? payload.value ?? value);
+      const valNum = toNumber(rawVal);
+      const formatted = formatter(valNum);
+
+      // radial position closer to outer edge
+      const radius = innerRadius + (outerRadius - innerRadius) * 0.7;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+      // rotate text parallel to slice direction
+      let rotate = -midAngle;
+      if (rotate > 90) rotate -= 180;
+      if (rotate < -90) rotate += 180;
+
+      // dynamic sizing for readability
+      const nameSize = Math.max(9, Math.min(12, Math.round(10 + percent * 12)));
+      const valueSize = Math.max(10, Math.min(14, Math.round(11 + percent * 12)));
+
+      // Çok küçük dilimler için sadece miktar ve yüzde göster (isim kaldırılır)
+      const smallSliceThreshold = 0.035; // %3.5'in altı -> sade gösterim
+      if (percent < smallSliceThreshold) {
+        return (
+          <g transform={`translate(${x},${y}) rotate(${rotate})`}>
+            <text x={0} y={0} fill="white" textAnchor="middle" dominantBaseline="central">
+              <tspan x={0} dy={0} style={{ fontSize: valueSize, fontWeight: 800, fill: 'white' }}>
+                {formatted}
+              </tspan>
+              <tspan x={0} dy={Math.max(12, valueSize + 6)} style={{ fontSize: Math.max(9, valueSize - 2), fontWeight: 700, fill: 'rgba(255,255,255,0.95)' }}>
+                {(percent * 100).toFixed(0)}%
+              </tspan>
+            </text>
+          </g>
+        );
+      }
+
+      return (
+        <g transform={`translate(${x},${y}) rotate(${rotate})`}>
+          <text x={0} y={0} fill="white" textAnchor="middle" dominantBaseline="central">
+            <tspan x={0} dy={-8} style={{ fontSize: nameSize, fontWeight: 700, fill: 'rgba(255,255,255,0.95)' }}>
+              {String(name).length > 20 ? String(name).slice(0, 20) + '…' : name}
+            </tspan>
+            <tspan x={0} dy={14} style={{ fontSize: valueSize, fontWeight: 800, fill: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
+              {formatted} · {(percent * 100).toFixed(0)}%
+            </tspan>
+          </text>
+        </g>
+      );
+    };
+
     switch (effectiveType) {
       case 'pie': {
-        const pieTotal = sortedData.reduce((s, d) => s + (toNumber(d[dataKey]) || 0), 0);
-        
+        // If expanded, show full data even if maxPieItems is set; otherwise limit to top N
+        const pieData = (expanded || !(typeof maxPieItems === 'number' && maxPieItems > 0)) ? sortedData : sortedData.slice(0, maxPieItems);
+        const pieTotal = pieData.reduce((s, d) => s + (toNumber(d[dataKey]) || 0), 0);
+
         const pieContent = (
           <ResponsiveContainer width="100%" height={isPieFullscreen ? 600 : 420}>
             <PieChart margin={{ top: 40, right: 100, bottom: 40, left: 100 }}>
               <Pie
-                data={sortedData}
+                data={pieData}
                 dataKey={dataKey}
                 nameKey={nameKey}
                 cx="50%" cy="50%"
-                outerRadius={isPieFullscreen ? 180 : 135}
-                paddingAngle={2} startAngle={90} endAngle={-270}
-                labelLine={false} 
-                label={renderPieLabel}
+                outerRadius={isPieFullscreen ? 220 : 150}
+                paddingAngle={0} startAngle={90} endAngle={-270}
+                labelLine={false}
+                label={renderPieLabelInner}
               >
-                {sortedData.map((_, index) => (
-                  <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="#fff" strokeWidth={2} />
+                {pieData.map((_, index) => (
+                  <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="none" strokeWidth={0} />
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip valueFormatter={formatter} />} />
@@ -397,7 +490,7 @@ const SwitchableChart = ({
                     <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       Detaylı Bilgi
                     </h4>
-                    {sortedData.map((item, i) => {
+                    {pieData.map((item, i) => {
                       const val = toNumber(item[dataKey]);
                       const pct = pieTotal > 0 ? (val / pieTotal) * 100 : 0;
                       return (
@@ -469,7 +562,7 @@ const SwitchableChart = ({
           <>
             {pieContent}
             <div style={{ padding: '8px 12px 4px', borderTop: '1px solid #f1f5f9', maxHeight: 500, overflowY: 'auto' }}>
-              {sortedData.map((item, i) => {
+              {pieData.map((item, i) => {
                 const val = toNumber(item[dataKey]);
                 const pct = pieTotal > 0 ? (val / pieTotal) * 100 : 0;
                 return (
@@ -554,22 +647,41 @@ const SwitchableChart = ({
 
   return (
     <div className={`chart-card${expanded ? ' full-width' : ''}`}>
-      <div className="chart-header">
-        <h3>{title}</h3>
-        <div className="chart-type-selector">
-          {CHART_TYPES.map((type) => (
+      {!hideHeader && (
+        <div className="chart-header">
+          <h3>{title}</h3>
+          <div className="chart-type-selector" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {CHART_TYPES.map((type) => (
+              <button
+                key={type.key}
+                className={`chart-type-btn ${(expanded ? 'horizontal' : effectiveChartType) === type.key ? 'active' : ''}`}
+                onClick={() => { if (!expanded) handleChartTypeChange(type.key); }}
+                title={type.label}
+                style={expanded ? { opacity: 0.4, cursor: 'default' } : {}}
+              >
+                {type.icon}
+              </button>
+            ))}
+            {/* Tek tıklamayla tam ekrana geçiş için ayrı buton (pie view için çalışır) */}
             <button
-              key={type.key}
-              className={`chart-type-btn ${(expanded ? 'horizontal' : chartType) === type.key ? 'active' : ''}`}
-              onClick={() => { if (!expanded) handleChartTypeChange(type.key); }}
-              title={type.label}
-              style={expanded ? { opacity: 0.4, cursor: 'default' } : {}}
+              className={`chart-type-btn expand-btn`}
+              onClick={() => {
+                if (expanded) return;
+                // Eğer şu an pie değilse önce pie'ı seç, sonra fullscreen aç
+                if ((typeof mode === 'string' ? mode : chartType) !== 'pie') {
+                  setChartType('pie');
+                  if (onModeChange) onModeChange('pie');
+                }
+                setIsPieFullscreen(true);
+              }}
+              title="Tam Ekran"
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              {type.icon}
+              <ExpandOutlined />
             </button>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
       <div className="chart-body">
         {renderChart()}
       </div>

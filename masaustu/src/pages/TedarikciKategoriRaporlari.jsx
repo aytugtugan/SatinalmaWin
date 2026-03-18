@@ -3,6 +3,7 @@ import {
   BarChart, Bar, PieChart, Pie, Label,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend,
 } from 'recharts';
+import { SwitchableChart } from '../components/SwitchableChart';
 import {
   BarChartOutlined, PieChartFilled, ReloadOutlined,
   TeamOutlined, TagsOutlined, WarningOutlined, SwapOutlined,
@@ -113,6 +114,7 @@ const NoData = () => <div style={{ padding: 40, textAlign: 'center', color: '#94
 /* ============ ÖZET TAB ============ */
 const OzetTab = ({ istatistik, istatistikErr, tipData, tipErr, kategoriOzet, kategoriOzetErr }) => {
   const [chartMode, setChartMode] = useState('bar');
+  const [expandedKategori, setExpandedKategori] = useState(false);
 
   return (
     <div>
@@ -120,9 +122,9 @@ const OzetTab = ({ istatistik, istatistikErr, tipData, tipErr, kategoriOzet, kat
       {istatistikErr ? <ErrorBox message={istatistikErr} /> : istatistik && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
           {[
-            { label: 'Toplam Kayıt', value: istatistik.toplam_kayit, color: '#8b5cf6', icon: <TagsOutlined /> },
+            { label: 'Toplam Tedarikçi', value: istatistik.toplam_kayit, color: '#8b5cf6', icon: <TagsOutlined /> },
             { label: 'Benzersiz Tedarikçi', value: istatistik.benzersiz_tedarikci, color: '#3b82f6', icon: <TeamOutlined /> },
-            { label: 'Benzersiz Kategori', value: istatistik.benzersiz_kategori, color: '#10b981', icon: <TagsOutlined /> },
+            { label: 'Benzersiz Tedarikçi Kategorisi', value: istatistik.benzersiz_kategori, color: '#10b981', icon: <TagsOutlined /> },
             { label: 'Benzersiz Tip', value: istatistik.benzersiz_tip, color: '#f59e0b', icon: <SwapOutlined /> },
           ].map((c, i) => (
             <div key={i} style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -140,76 +142,56 @@ const OzetTab = ({ istatistik, istatistikErr, tipData, tipErr, kategoriOzet, kat
         {/* TIP Dağılımı */}
         <ChartCard title="Tip Dağılımı" icon={<PieChartFilled />}>
           {tipErr ? <ErrorBox message={tipErr} /> : tipData?.length > 0 ? (
-            <>
-              <ResponsiveContainer width="100%" height={340}>
-                <PieChart margin={{ top: 20, right: 70, bottom: 20, left: 70 }}>
-                  <Pie data={tipData} dataKey="kayit_sayisi" nameKey="tip"
-                    cx="50%" cy="50%" outerRadius={110}
-                    paddingAngle={2} startAngle={90} endAngle={-270}
-                    labelLine={false} label={renderCombinedLabel}
-                  >
-                    {tipData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="#fff" strokeWidth={2} />)}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{ padding: '8px 12px 4px', borderTop: '1px solid #f1f5f9' }}>
-                {tipData.map((t, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: i < tipData.length - 1 ? '1px solid #f8fafc' : 'none' }}>
-                    <span style={{ fontSize: 11, color: '#94a3b8', width: 14, textAlign: 'right', flexShrink: 0, fontWeight: 600 }}>{i + 1}</span>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 12, color: '#1e293b', fontWeight: 500 }}>Tip {tipLabel(t.tip)}</span>
-                    <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textAlign: 'right', flexShrink: 0 }}>{t.kayit_sayisi} kayıt</span>
-                  </div>
-                ))}
-              </div>
-            </>
+            <SwitchableChart
+              title="Tip Dağılımı"
+              data={tipData}
+              dataKey="kayit_sayisi"
+              nameKey="tip"
+              defaultType="pie"
+              valueFormatter={(v) => String(v)}
+              height={340}
+              showPct={true}
+            />
           ) : <NoData />}
         </ChartCard>
 
         {/* Kategori Özet */}
         <ChartCard title="Kategori Bazlı Tedarikçi Sayısı" icon={<BarChartOutlined />}
           headerRight={
-            <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 8, padding: 3 }}>
-              <button onClick={() => setChartMode('bar')}
-                style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 14,
-                  background: chartMode === 'bar' ? '#8b5cf6' : 'transparent', color: chartMode === 'bar' ? '#fff' : '#64748b' }}>
-                <BarChartOutlined />
-              </button>
-              <button onClick={() => setChartMode('pie')}
-                style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 14,
-                  background: chartMode === 'pie' ? '#8b5cf6' : 'transparent', color: chartMode === 'pie' ? '#fff' : '#64748b' }}>
-                <PieChartFilled />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 8, padding: 3 }}>
+                <button onClick={() => setChartMode('bar')}
+                  style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 14,
+                    background: chartMode === 'bar' ? '#8b5cf6' : 'transparent', color: chartMode === 'bar' ? '#fff' : '#64748b' }}>
+                  <BarChartOutlined />
+                </button>
+                <button onClick={() => setChartMode('pie')}
+                  style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 14,
+                    background: chartMode === 'pie' ? '#8b5cf6' : 'transparent', color: chartMode === 'pie' ? '#fff' : '#64748b' }}>
+                  <PieChartFilled />
+                </button>
+              </div>
+              <button onClick={() => setExpandedKategori(s => !s)}
+                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0', background: expandedKategori ? '#8b5cf6' : '#fff', color: expandedKategori ? '#fff' : '#64748b', cursor: 'pointer', fontSize: 13 }}>
+                {expandedKategori ? 'Kapat' : 'Tümünü Gör'}
               </button>
             </div>
           }
         >
           {kategoriOzetErr ? <ErrorBox message={kategoriOzetErr} /> : kategoriOzet?.length > 0 ? (
             chartMode === 'pie' ? (
-              <>
-                <ResponsiveContainer width="100%" height={340}>
-                  <PieChart margin={{ top: 20, right: 70, bottom: 20, left: 70 }}>
-                    <Pie data={kategoriOzet.slice(0, 10)} dataKey="tedarikci_sayisi" nameKey="kategori"
-                      cx="50%" cy="50%" outerRadius={110}
-                      paddingAngle={2} startAngle={90} endAngle={-270}
-                      labelLine={false} label={renderCombinedLabel}
-                    >
-                      {kategoriOzet.slice(0, 10).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="#fff" strokeWidth={2} />)}
-                    </Pie>
-                    <Tooltip content={<ChartTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div style={{ padding: '8px 12px 4px', borderTop: '1px solid #f1f5f9' }}>
-                  {kategoriOzet.slice(0, 10).map((item, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: i < Math.min(kategoriOzet.length, 10) - 1 ? '1px solid #f8fafc' : 'none' }}>
-                      <span style={{ fontSize: 11, color: '#94a3b8', width: 14, textAlign: 'right', flexShrink: 0, fontWeight: 600 }}>{i + 1}</span>
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: COLORS[i % COLORS.length] }} />
-                      <span style={{ flex: 1, fontSize: 11, color: '#1e293b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.kategori}</span>
-                      <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textAlign: 'right', flexShrink: 0 }}>{item.tedarikci_sayisi}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
+              <SwitchableChart
+                title="Kategori Bazlı Tedarikçi Sayısı"
+                data={kategoriOzet}
+                dataKey="tedarikci_sayisi"
+                nameKey="kategori"
+                defaultType="pie"
+                valueFormatter={(v) => String(v)}
+                height={340}
+                showPct={true}
+                maxPieItems={10}
+                expanded={expandedKategori}
+              />
             ) : (
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={kategoriOzet.slice(0, 15)} margin={{ top: 20, right: 30, left: 10, bottom: 80 }}>

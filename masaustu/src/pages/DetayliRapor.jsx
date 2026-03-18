@@ -2,6 +2,7 @@
 import { Table, Input, DatePicker, Button, Space, Tag, Tooltip, Badge, Switch } from 'antd';
 import { SearchOutlined, ReloadOutlined, DownloadOutlined, ExpandAltOutlined, ShrinkOutlined, PaperClipOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import * as XLSX from 'xlsx';
 import DosyaYonetimi from '../components/DosyaYonetimi';
 import { formatCurrency, formatUnitPrice } from '../components/SwitchableChart';
 
@@ -600,28 +601,64 @@ const DetayliRapor = ({ data, selectedIsyeri, columns }) => {
     }
   };
 
-  // Excel export
+  // Excel export (write real XLSX with numeric types)
   const handleExport = () => {
     const headers = ['Sipariş No', 'Talep No', 'Talep Eden', 'Sipariş Tarihi', 'Tedarikçi', 'Masraf Merkezi', 'Malzeme/Hizmet', 'Miktar', 'Birim Fiyatı', 'Toplam (TRY)', 'Toplam (Orijinal)', 'Para Birimi', 'Ödeme Vadesi', 'Teslim Evrak No'];
     const keys = ['SIPARIS_NO', 'TALEP_NO', 'TALEP_EDEN', 'SIPARIS_TARIHI', 'CARI_UNVANI', 'MASRAF_MERKEZI', 'SIPARIS_MALZEME', 'MIKTAR', 'BIRIM_FIYAT', 'TOPLAM_TRY', 'TOPLAM', 'PARA_BIRIMI', 'ODEME_VADESI', 'TESLIM_EVRAK_NO'];
-    
-    const csvContent = [
-      headers.join(';'),
-      ...filteredData.map(row =>
-        keys.map(key => {
-          const value = row[key];
-          if (key === 'SIPARIS_TARIHI' && value) {
-            return dayjs(value).format('DD.MM.YYYY');
-          }
-          return value != null ? String(value).replace(/;/g, ',') : '';
-        }).join(';')
-      )
-    ].join('\n');
 
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const rows = filteredData.map(row => {
+      const safeNum = (v) => {
+        if (v == null || v === '') return null;
+        if (typeof v === 'number') return v;
+        const s = String(v).trim();
+        // handle both 1.234.567,89 and 1234.56
+        const cleaned = s.replace(/[^0-9,.-]/g, '').replace(/\.(?=\d{3}(?:[,.]|$))/g, '').replace(/,/g, '.');
+        const n = Number(cleaned);
+        return Number.isFinite(n) ? n : null;
+      };
+
+      const out = {};
+      headers.forEach((h, i) => {
+        const key = keys[i];
+        if (key === 'SIPARIS_TARIHI') {
+          out[h] = row[key] ? dayjs(row[key]).format('DD.MM.YYYY') : '';
+        } else if (['MIKTAR'].includes(key)) {
+          out[h] = safeNum(row[key]);
+        } else if (['BIRIM_FIYAT', 'TOPLAM_TRY', 'TOPLAM'].includes(key)) {
+          out[h] = safeNum(row[key]);
+        } else {
+          out[h] = row[key] != null ? String(row[key]) : '';
+        }
+      });
+      return out;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+    // ensure numeric columns are numeric in sheet
+    const hdrIdx = XLSX.utils.sheet_to_json(ws, { header: 1 })[0];
+    const numCols = ['Miktar', 'Birim Fiyatı', 'Toplam (TRY)', 'Toplam (Orijinal)'];
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const h = hdrIdx[C];
+        if (numCols.includes(h)) {
+          const cellRef = XLSX.utils.encode_cell({ c: C, r: R });
+          const cell = ws[cellRef];
+          if (cell && typeof cell.v === 'string') {
+            const n = safeNum(cell.v);
+            if (n != null) { cell.v = n; cell.t = 'n'; }
+          }
+        }
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Detaylı Rapor');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/octet-stream' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `satinalma_rapor_${dayjs().format('YYYYMMDD_HHmmss')}.csv`;
+    link.download = `satinalma_rapor_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
     link.click();
   };
 

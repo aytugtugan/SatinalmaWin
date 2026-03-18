@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import {  SwitchableChart, formatNumber, formatCurrency } from '../components/SwitchableChart';
+import {    SwitchableChart, formatNumber, formatCurrency } from '../components/SwitchableChart';
 import CompareSwitch from '../components/CompareSwitch';
 import ComparisonChart from '../components/ComparisonChart';
 import { TeamOutlined, WalletOutlined, ShoppingCartOutlined, CrownOutlined } from '@ant-design/icons';

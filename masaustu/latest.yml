@@ -1,8 +1,8 @@
-version: 1.0.19
+version: 1.0.22
 files:
-  - url: https://github.com/mustafabakoglu/Satin-alma/releases/download/v1.0.19/Satin.Alma.Rapor.Setup.1.0.19.exe
-    sha512: n0LmuiLsqwDlY+RxmXgRjxOfUKy0A15+z4hxG7y6ovaOFN860EP9nmJXvnWFKMzmBy65LqJG4ySNePA4Y8NIGA==
-    size: 105748631
-path: Satin.Alma.Rapor.Setup.1.0.19.exe
-sha512: n0LmuiLsqwDlY+RxmXgRjxOfUKy0A15+z4hxG7y6ovaOFN860EP9nmJXvnWFKMzmBy65LqJG4ySNePA4Y8NIGA==
-releaseDate: '2026-03-16T09:51:21.878Z'
+  - url: Satin.Alma.Rapor.Setup.1.0.22.exe
+    sha512: UZ+R+H5PXEOu1WG6K3mQfbcyptn4MsB6p+wbQPTe7IRtQmjTJpXFkktnJ7N86DefAYzgXbVHpE/qU8ERExnR5g==
+    size: 106244362
+path: Satin.Alma.Rapor.Setup.1.0.22.exe
+sha512: UZ+R+H5PXEOu1WG6K3mQfbcyptn4MsB6p+wbQPTe7IRtQmjTJpXFkktnJ7N86DefAYzgXbVHpE/qU8ERExnR5g==
+releaseDate: '2026-03-18T08:07:15.954Z'

@@ -3,6 +3,7 @@ import {
   BarChart, Bar, PieChart, Pie, Label,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend,
 } from 'recharts';
+import { SwitchableChart } from '../components/SwitchableChart';
 import {
   TrophyOutlined, BarChartOutlined, PieChartFilled,
   LeftOutlined, RightOutlined, CloseOutlined, EnvironmentOutlined,
@@ -152,65 +153,22 @@ const LegendTable = ({ headers, rows }) => (
 );
 
 /* ============ Generic Chart Renderer ============ */
-const RenderChart = ({ data, mode, dataKey, nameKey, height = 280 }) => {
+const RenderChart = ({ data, mode, dataKey, nameKey, height = 280, maxPieItems }) => {
   if (!data?.length) return <div style={{ padding: 60, textAlign: 'center', color: '#94a3b8' }}>Veri bulunamadı</div>;
 
-  // Pasta grafik: tüm veri kullanılır (dilim gizlenmez)
-  const pieData = (() => {
-    return data;
-  })();
-
-  if (mode === 'pie') {
-    const pieTotal = pieData.reduce((s, d) => s + (parseFloat(d[dataKey]) || 0), 0);
-    return (
-      <>
-        <div style={{ position: 'relative' }}>
-          <ResponsiveContainer width="100%" height={420}>
-            <PieChart margin={{ top: 20, right: 70, bottom: 20, left: 70 }}>
-              <Pie data={pieData} dataKey={dataKey} nameKey={nameKey}
-                cx="50%" cy="50%"
-                outerRadius={135}
-                paddingAngle={2} startAngle={90} endAngle={-270}
-                labelLine={false} label={false}
-              >
-                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="#fff" strokeWidth={2} />)}
-              </Pie>
-              <Tooltip content={<ChartTooltip formatter={fmtCurrency} />} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        <div style={{ padding: '8px 12px 4px', borderTop: '1px solid #f1f5f9', maxHeight: 420, overflowY: 'auto' }}>
-          {pieData.map((item, i) => {
-            const val = parseFloat(item[dataKey]) || 0;
-            const pct = pieTotal > 0 ? (val / pieTotal) * 100 : 0;
-            return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: i < pieData.length - 1 ? '1px solid #f8fafc' : 'none' }}>
-                <span style={{ fontSize: 11, color: '#94a3b8', width: 14, textAlign: 'right', flexShrink: 0, fontWeight: 600 }}>{i + 1}</span>
-                <span style={{ width: 12, height: 12, borderRadius: 3, background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                <span style={{ flex: 1, fontSize: 12, color: '#1e293b', whiteSpace: 'normal', wordBreak: 'break-word', fontWeight: 500 }}>{item[nameKey]}</span>
-                <span style={{ fontSize: 11, color: '#3b82f6', fontWeight: 700, textAlign: 'right', width: 44, flexShrink: 0 }}>{pct.toFixed(1)}%</span>
-                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textAlign: 'right', width: 76, flexShrink: 0 }}>{fmtShort(val)}</span>
-              </div>
-            );
-          })}
-        </div>
-      </>
-    );
-  }
-
-  // bar (default)
+  const valueFormatter = mode === 'pie' ? fmtCurrency : fmtShort;
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 60 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-        <XAxis dataKey={nameKey} tick={{ fontSize: 11, fill: '#6a6d70' }} angle={-45} textAnchor="end" height={70} tickLine={false} />
-        <YAxis tickFormatter={fmtShort} tick={{ fontSize: 11, fill: '#6a6d70' }} axisLine={false} tickLine={false} />
-        <Tooltip content={<ChartTooltip formatter={fmtShort} />} />
-        <Bar dataKey={dataKey} name="Getiri" radius={[4, 4, 0, 0]} maxBarSize={45}>
-          {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <SwitchableChart
+      title=""
+      data={data}
+      dataKey={dataKey}
+      nameKey={nameKey}
+      defaultType={mode || 'bar'}
+      valueFormatter={valueFormatter}
+      maxPieItems={maxPieItems}
+      height={height}
+      showLegend={false}
+    />
   );
 };
 
@@ -306,7 +264,7 @@ const OzetTab = ({ ozet, lokasyonData, tedarikciData, masrafData, trendData, tre
 
         {/* Tedarikçi */}
           <ChartCard title="Tedarikçi Kazanç Dağılımı" headerRight={<ChartSwitch mode={tedMode} setMode={setTedMode} />}>
-          <RenderChart data={visibleTedarikci} mode={tedMode} dataKey="toplam_kazanc_tl" nameKey="kazanan_tedarikci" />
+          <RenderChart data={visibleTedarikci} mode={tedMode} dataKey="toplam_kazanc_tl" nameKey="kazanan_tedarikci" maxPieItems={10} />
           {sortedTedarikci?.length > 0 && tedMode !== 'pie' && (
             <>
               <LegendTable headers={['Tedarikçi', 'Adet', 'Kazanç']}
@@ -325,7 +283,7 @@ const OzetTab = ({ ozet, lokasyonData, tedarikciData, masrafData, trendData, tre
       </div>
 
       <ChartCard title="Masraf Merkezi Getiri Dağılımı" headerRight={<ChartSwitch mode={masrafMode} setMode={setMasrafMode} />} style={{ marginBottom: 20 }}>
-        <RenderChart data={masrafData} mode={masrafMode} dataKey="toplam_kazanc_tl" nameKey="masraf_merkezi" />
+        <RenderChart data={masrafData} mode={masrafMode} dataKey="toplam_kazanc_tl" nameKey="masraf_merkezi" maxPieItems={10} />
         {masrafData?.length > 0 && masrafMode !== 'pie' && (
           <LegendTable headers={['Masraf Merkezi', 'İhale', 'Getiri']}
             rows={masrafData.map((item, i) => [

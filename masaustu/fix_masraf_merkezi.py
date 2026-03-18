@@ -77,6 +77,23 @@ for i, item in enumerate(data):
                         counts[v] += 1
                     break
 
+            # if still not replaced, look for mapping keywords in other text fields (e.g., ACIKLAMA)
+            if item.get(key) == orig:
+                other_fields = ['ACIKLAMA', 'TALEP_ACIKLAMA', 'SIPARIS_MALZEME']
+                for field in other_fields:
+                    val = item.get(field)
+                    if isinstance(val, str):
+                        nv = norm(val)
+                        for k, v in mapping.items():
+                            if k in nv:
+                                if item[key] != v:
+                                    item[key] = v
+                                    changes.append((i, orig, v))
+                                    counts[v] += 1
+                                break
+                        if item.get(key) != orig:
+                            break
+
 if changes:
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)

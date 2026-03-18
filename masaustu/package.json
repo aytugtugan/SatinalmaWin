@@ -1,6 +1,6 @@
 {
   "name": "satinalma-rapor",
-  "version": "1.0.19",
+  "version": "1.0.23",
   "description": "Satın Alma Rapor Uygulaması",
   "main": "main.js",
   "scripts": {
@@ -17,14 +17,14 @@
       "output": "C:\\Users\\acemoglu\\Desktop"
     },
     "forceCodeSigning": false,
-    "artifactName": "Satin.Alma.Rapor.Setup.${version}.exe",
+    "artifactName": "Satin.Alma.Rapor.Setup.${version}.${ext}",
     "win": {
-      "target": "nsis",
+      "target": ["nsis", "zip"],
       "icon": "assets/icon.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
       "allowElevation": true,
       "createDesktopShortcut": "always",
@@ -48,6 +48,12 @@
       {
         "from": "ocak_2026_data.json",
         "to": "ocak_2026_data.json"
+      }
+    ],
+    "extraFiles": [
+      {
+        "from": "assets/uninstallerIcon.ico",
+        "to": "uninstallerIcon.ico"
       }
     ],
     "files": [

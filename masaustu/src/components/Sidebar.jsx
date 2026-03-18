@@ -27,7 +27,7 @@ const menuItems = [
   { key: 'ihale', icon: <TrophyOutlined />, label: 'İhale Yönetimi' },
   { key: 'ihaleRapor', icon: <BarChartOutlined />, label: 'İhale Raporları' },
   { key: 'tedarikciKategori', icon: <TagsOutlined />, label: 'Tedarikçi Kategori' },
-  { key: 'tedarikciKategoriRapor', icon: <PieChartFilled />, label: 'Kategori Raporları' },
+  { key: 'tedarikciKategoriRapor', icon: <PieChartFilled />, label: 'Tedarikçi Kategori Raporları' },
 ];
 
 const Sidebar = ({ currentPage, setCurrentPage, updateStatus, downloadPercent, onCheckUpdate, onRestartUpdate }) => {
