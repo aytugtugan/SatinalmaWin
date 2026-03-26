@@ -373,11 +373,24 @@ const PdfExportModal = ({ open, onClose, dashboardData, comparisonData, selected
   }, [filteredDashboardData, dashboardData, comparisonData, reportFilter, extraData]);
 
   const filterOptions = useMemo(() => {
-    const fromAmbarList = (ambarList || []).map((x) => ({ value: x.ambar, label: x.displayName || x.ambar }));
-    const seen = new Set(fromAmbarList.map((x) => x.value));
+    const normalizeFactoryKey = (v) => (v || '').toString().trim().toLocaleLowerCase('tr-TR');
+    const fromAmbarList = [];
+    const seen = new Set();
+
+    (ambarList || []).forEach((x) => {
+      const value = (x?.ambar || '').toString().trim();
+      if (!value) return;
+      const normalized = normalizeFactoryKey(value);
+      if (seen.has(normalized)) return;
+      seen.add(normalized);
+      fromAmbarList.push({ value, label: (x?.displayName || value).toString().trim() });
+    });
+
     const fromComparison = Object.keys(comparisonData || {})
-      .filter((k) => !seen.has(k))
+      .map((k) => k.toString().trim())
+      .filter((k) => k && !seen.has(normalizeFactoryKey(k)))
       .map((k) => ({ value: k, label: k }));
+
     return [{ value: 'all', label: 'Tüm Fabrikalar' }, ...fromAmbarList, ...fromComparison];
   }, [ambarList, comparisonData]);
 
