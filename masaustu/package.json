@@ -1,12 +1,14 @@
 {
   "name": "satinalma-rapor",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "description": "Satın Alma Rapor Uygulaması",
   "main": "main.js",
   "scripts": {
     "start": "concurrently \"npm run webpack\" \"wait-on dist/bundle.js && electron .\"",
     "webpack": "webpack --mode development --watch",
     "build": "webpack --mode production && electron-builder && node scripts/embed-icon-exe.js",
+    "build:win-unpacked": "webpack --mode production && electron-builder --win --dir --publish never -c.compression=store",
+    "build:win-unpacked:quick": "electron-builder --win --dir --publish never -c.compression=store",
     "electron": "electron .",
     "api": "node api/server.js"
   },

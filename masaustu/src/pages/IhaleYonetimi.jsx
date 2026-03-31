@@ -69,6 +69,28 @@ const normalizeFilterText = (v) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const normalizeIhaleRow = (row = {}) => ({
+  ...row,
+  sira_no: row.sira_no ?? row.siraNo ?? row.SIRA_NO ?? null,
+  tarih: row.tarih ?? row.TARIH ?? '',
+  siparis_numarasi: row.siparis_numarasi ?? row.siparisNo ?? row.SIPARIS_NO ?? '',
+  malzeme_hizmet: row.malzeme_hizmet ?? row.malzemeHizmet ?? row.MALZEME_HIZMET ?? '',
+  masraf_merkezi: row.masraf_merkezi ?? row.masrafMerkezi ?? row.MASRAF_MERKEZI ?? '',
+  lokasyon: row.lokasyon ?? row.LOKASYON ?? '',
+  firma_1: row.firma_1 ?? row.firma1 ?? row.FIRMA_1 ?? '',
+  firma_2: row.firma_2 ?? row.firma2 ?? row.FIRMA_2 ?? '',
+  firma_3: row.firma_3 ?? row.firma3 ?? row.FIRMA_3 ?? '',
+  firma_4: row.firma_4 ?? row.firma4 ?? row.FIRMA_4 ?? '',
+  firma_5: row.firma_5 ?? row.firma5 ?? row.FIRMA_5 ?? '',
+  kazanan_tedarikci: row.kazanan_tedarikci ?? row.kazananTedarikci ?? row.KAZANAN_TEDARIKCI ?? '',
+  teklif_1_tl: row.teklif_1_tl ?? row.teklif1Tl ?? row.TEKLIF_1_TL ?? 0,
+  teklif_2_tl: row.teklif_2_tl ?? row.teklif2Tl ?? row.TEKLIF_2_TL ?? 0,
+  teklif_3_tl: row.teklif_3_tl ?? row.teklif3Tl ?? row.TEKLIF_3_TL ?? 0,
+  teklif_4_tl: row.teklif_4_tl ?? row.teklif4Tl ?? row.TEKLIF_4_TL ?? 0,
+  teklif_5_tl: row.teklif_5_tl ?? row.teklif5Tl ?? row.TEKLIF_5_TL ?? 0,
+  kazanc_tutari_tl: row.kazanc_tutari_tl ?? row.kazancTutariTl ?? row.KAZANC_TUTARI_TL ?? 0,
+});
+
 const IhaleYonetimi = ({ selectedAmbar = 'all' }) => {
   const [data, setData] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -107,22 +129,24 @@ const IhaleYonetimi = ({ selectedAmbar = 'all' }) => {
       const result = await getIhaleler(params);
 
       const payload = result?.data && !Array.isArray(result.data) ? result.data : result;
-      const rows = Array.isArray(payload)
+      const rawRows = Array.isArray(payload)
         ? payload
         : (Array.isArray(payload?.data)
             ? payload.data
             : (Array.isArray(payload?.rows) ? payload.rows : []));
+      const rows = rawRows.map(normalizeIhaleRow);
       const total = payload?.totalCount ?? payload?.total_count ?? payload?.pagination?.total ?? rows.length;
 
       // Geçici lokasyon uyuşmazlığında ilk açılışta boş dönmesini engelle
       if (rows.length === 0 && filterLokasyon && page === 1) {
         const fallbackResult = await getIhaleler({ page, limit });
         const fallbackPayload = fallbackResult?.data && !Array.isArray(fallbackResult.data) ? fallbackResult.data : fallbackResult;
-        const fallbackRows = Array.isArray(fallbackPayload)
+        const fallbackRawRows = Array.isArray(fallbackPayload)
           ? fallbackPayload
           : (Array.isArray(fallbackPayload?.data)
               ? fallbackPayload.data
               : (Array.isArray(fallbackPayload?.rows) ? fallbackPayload.rows : []));
+        const fallbackRows = fallbackRawRows.map(normalizeIhaleRow);
         const fallbackTotal = fallbackPayload?.totalCount ?? fallbackPayload?.total_count ?? fallbackPayload?.pagination?.total ?? fallbackRows.length;
         setFilterLokasyon('');
         setData(fallbackRows);
@@ -200,6 +224,8 @@ const IhaleYonetimi = ({ selectedAmbar = 'all' }) => {
       const dto = {
         ...form,
         masraf_merkezi: form.masraf_merkezi || '',
+        masrafMerkezi: form.masraf_merkezi || '',
+        MASRAF_MERKEZI: form.masraf_merkezi || '',
         teklif_1_tl: parseFloat(form.teklif_1_tl) || 0,
         teklif_2_tl: parseFloat(form.teklif_2_tl) || 0,
         teklif_3_tl: parseFloat(form.teklif_3_tl) || 0,
