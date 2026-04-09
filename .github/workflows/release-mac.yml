@@ -1,4 +1,4 @@
-name: Release Windows
+name: Release macOS
 
 on:
   push:
@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  release-win:
-    runs-on: windows-latest
+  release-mac:
+    runs-on: macos-latest
 
     defaults:
       run:
@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build & Publish Windows
+      - name: Build & Publish macOS
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: npm run publish:win
+        run: npm run publish:mac
