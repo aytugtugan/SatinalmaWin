@@ -1,7 +1,0 @@
-node_modules/
-dist/
-.vs/
-*.log
-*.tmp
-*.bak
-.DS_Store
